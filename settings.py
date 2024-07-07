@@ -11,6 +11,8 @@ load_dotenv()
 
 DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
 
+BASE_DIR = pathlib.Path(__file__).parent
+COGS_DIR = BASE_DIR / "cogs"
 
 LOGGING_CONFIG = {
     "version": 1,
