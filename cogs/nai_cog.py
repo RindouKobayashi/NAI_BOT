@@ -10,19 +10,13 @@ from os import environ as env
 import zipfile
 from pathlib import Path
 import settings
+from core.queuehandler import nai_queue
+import random
 
 # Import utility functions
 from .nai_utils import prompt_to_nai, image_to_base64, bytes_to_image, calculate_resolution
 
-class NovelAIAPI:
-    BASE_URL = "https://image.novelai.net"
 
-    @staticmethod
-    def generate_image(access_token, prompt, model, action, parameters):
-        data = {"input": prompt, "model": model, "action": action, "parameters": parameters}
-        response = requests.post(f"{NovelAIAPI.BASE_URL}/ai/generate-image", json=data, headers={"Authorization": f"Bearer {access_token}"})
-        response.raise_for_status()
-        return response.content
 
 class NAI(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -35,6 +29,16 @@ class NAI(commands.Cog):
         self.output_dir = "nai_output"  # You may want to customize this
 
     @app_commands.command(name="nai", description="Generate an image using NovelAI")
+    @app_commands.choices(
+        sampler=[
+            app_commands.Choice(name="k_euler", value="k_euler"),
+            app_commands.Choice(name="k_euler_ancestral", value="k_euler_ancestral"),
+            app_commands.Choice(name="k_dpmpp_2s_ancestral", value="k_dpmpp_2s_ancestral"),
+            app_commands.Choice(name="k_dpmpp_2m", value="k_dpmpp_2m"),
+            app_commands.Choice(name="k_dpmpp_sde", value="k_dpmpp_sde"),
+            app_commands.Choice(name="ddim", value="ddim"),
+        ]
+    )
     @app_commands.describe(
         positive="Positive prompt for image generation",
         negative="Negative prompt for image generation",
@@ -53,60 +57,60 @@ class NAI(commands.Cog):
                   height: int = 1216, 
                   steps: int = 28, 
                   cfg: float = 5.0, 
-                  sampler: str = "k_euler", 
+                  sampler: app_commands.Choice[str] = "k_euler", 
                   seed: int = 0,
                   model: str = "nai-diffusion-3"):
         await interaction.response.defer()
 
-        try:
-            width, height = calculate_resolution(width*height, (width, height))
+        # Define min, max, step values
+        min_cfg, max_cfg, cfg_step = 0.0, 10.0, 0.1
 
-            params = {
-                "width": width,
-                "height": height,
-                "n_samples": 1,
-                "seed": seed,
-                "sampler": sampler,
-                "steps": steps,
-                "scale": cfg,
-                "uncond_scale": 1.0,
-                "negative_prompt": negative,
-                "sm": False,
-                "sm_dyn": False,
-                "cfg_rescale": 0,
-                "noise_schedule": "native",
-                "legacy": False,
-                "quality_toggle": False,
-            }
+        try:
 
             # Check pixel limit
             pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3") else 640*640
             if width*height > pixel_limit:
                 raise ValueError(f"Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).")
-
+            
             # Check steps limit
             if steps > 28:
                 raise ValueError("Steps must be less than or equal to 28.")
+            
+            # Check seed
+            if seed <= 0:
+                seed = random.randint(0, 9999999999)
 
-            action = "generate"
-            nai_prompt = prompt_to_nai(positive)
+            # Enforce cfg constraints
+            cfg = max(min_cfg, min(max_cfg, round(cfg / cfg_step) * cfg_step))
 
-            zipped_bytes = NovelAIAPI.generate_image(self.access_token, nai_prompt, model, action, params)
-            zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
-            image_bytes = zipped.read(zipped.infolist()[0])  # only support one n_samples
+            width, height = calculate_resolution(width*height, (width, height))
 
-            # Save the image
-            full_output_folder = Path(self.output_dir)
-            full_output_folder.mkdir(exist_ok=True)
-            file = f"nai_generated_{interaction.id}.png"
-            (full_output_folder / file).write_bytes(image_bytes)
 
-            # Send the image to Discord
-            await interaction.followup.send(file=discord.File(io.BytesIO(image_bytes), filename="generated_image.png"))
+            # Process sampler
+            sampler = sampler.value
+            logger.info(f"Sampler: {sampler}")
+
+            params = {
+                "positive": positive,
+                "negative": negative,
+                "width": width,
+                "height": height,
+                "steps": steps,
+                "cfg": cfg,
+                "sampler": sampler,
+                "seed": seed,
+                "model": model,
+                # ... (add any other parameters you need)
+            }
+
+            
+            # Add the request to the queue
+            await nai_queue.add_to_queue(interaction, params)
+            await interaction.followup.send("Your request has been added to the queue. Please wait...")
 
         except Exception as e:
             logger.error(f"Error in NAI command: {str(e)}")
-            await interaction.followup.send(f"An error occurred while generating the image. `{str(e)}`")
+            await interaction.followup.send(f"An error occurred while queueing the image generation. `{str(e)}`")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))

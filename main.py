@@ -1,7 +1,9 @@
 import discord
 import settings
+import asyncio
 from discord.ext import commands
 from settings import logger
+import core.queuehandler as queuehandler
 
 
 
@@ -23,6 +25,11 @@ def run():
 
         # Change presence 
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
+
+        # Start queuehandler
+        asyncio.create_task(queuehandler.start_queue())
+
+
 
 
     bot.run(settings.DISCORD_API_TOKEN, root_logger=True)
