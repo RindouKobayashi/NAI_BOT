@@ -26,7 +26,7 @@ class NAI(commands.Cog):
         else:
             raise RuntimeError("Please ensure that NAI_ACCESS_TOKEN is set in your .env file.")
         
-        self.output_dir = "nai_output"  # You may want to customize this
+        self.output_dir = "nai_output"
 
     @app_commands.command(name="nai", description="Generate an image using NovelAI")
     @app_commands.allowed_installs(guilds=True, users=True)
@@ -61,6 +61,7 @@ class NAI(commands.Cog):
                   sampler: app_commands.Choice[str] = "k_euler", 
                   seed: int = 0,
                   model: str = "nai-diffusion-3"):
+        logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
         await interaction.response.defer()
 
         # Define min, max, step values
@@ -109,8 +110,12 @@ class NAI(commands.Cog):
 
             
             # Add the request to the queue
-            message = await interaction.edit_original_response(content="Your request has been added to the queue. Please wait...")
-            await nai_queue.add_to_queue(interaction, params, message)
+            message = await interaction.edit_original_response(content="Adding your request to the queue...")
+            success = await nai_queue.add_to_queue(interaction, params, message)
+
+            if not success:
+                # The message has already been edited in the add_to_queue function
+                return
 
         except Exception as e:
             logger.error(f"Error in NAI command: {str(e)}")

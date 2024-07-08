@@ -11,7 +11,7 @@ from datetime import datetime
 from main import bot
 
 # Define a named tuple for queue items
-QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message'])
+QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message', 'position'])
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
@@ -31,19 +31,47 @@ class NAIQueue:
         self.output_dir = Path("nai_output")
         self.output_dir.mkdir(exist_ok=True)
         self.bot = bot
+        self.queue_list = []
+        self.user_request_count = {}
 
     async def add_to_queue(self, interaction: Interaction, params: dict, message: Message):
-        await self.queue.put(QueueItem(interaction, params, message))
+        user_id = interaction.user.id
+
+        # Check if the user has reached the limit
+        if self.user_request_count.get(user_id, 0) >= 2:
+            await message.edit(content="You have reached the maximum limit of 2 requests in the queue. Please wait for your current requests to complete before adding more.")
+            return False
+
+        position = len(self.queue_list) + 1
+        item = QueueItem(interaction, params, message, position)
+        self.queue_list.append(item)
+        await self.queue.put(item)
+
+        # Increment the user's request count
+        self.user_request_count[user_id] = self.user_request_count.get(user_id, 0) + 1
+        await self.update_queue_positions()
+        return True
+
+    async def update_queue_positions(self):
+        for i, item in enumerate(self.queue_list, start=1):
+            await item.message.edit(content=f"Your request is in queue. Current position: `{i}`")
 
     async def process_queue(self):
         self.session = aiohttp.ClientSession()
         while True:
             item = await self.queue.get()
+            self.queue_list.pop(0)
+
+            # Decrement the user's request count
+            user_id = item.interaction.user.id
+            self.user_request_count[user_id] = max(0, self.user_request_count.get(user_id) - 1)
+
+            await self.update_queue_positions()
             await self._process_item(item)
             self.queue.task_done()
 
     async def _process_item(self, item: QueueItem):
-        interaction, params, message = item
+        interaction, params, message, _ = item
         interaction: Interaction
         message : Message
         try:
@@ -106,6 +134,10 @@ class NAIQueue:
                 content=reply_content,
                 attachments=files
             )
+
+            # Check if channel posted on is 1157817614245052446 then add reaction
+            if interaction.channel.id == 1157817614245052446:
+                await message.add_reaction("🔎")
 
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
