@@ -29,6 +29,7 @@ class NAI(commands.Cog):
         self.output_dir = "nai_output"  # You may want to customize this
 
     @app_commands.command(name="nai", description="Generate an image using NovelAI")
+    @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.choices(
         sampler=[
             app_commands.Choice(name="k_euler", value="k_euler"),
@@ -52,7 +53,7 @@ class NAI(commands.Cog):
     )
     async def nai(self, interaction: discord.Interaction, 
                   positive: str, 
-                  negative: str = "lowres", 
+                  negative: str = None, 
                   width: int = 832, 
                   height: int = 1216, 
                   steps: int = 28, 
@@ -66,6 +67,8 @@ class NAI(commands.Cog):
         min_cfg, max_cfg, cfg_step = 0.0, 10.0, 0.1
 
         try:
+
+            await interaction.followup.send("Checking parameters...")
 
             # Check pixel limit
             pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3") else 640*640
@@ -87,8 +90,9 @@ class NAI(commands.Cog):
 
 
             # Process sampler
-            sampler = sampler.value
-            logger.info(f"Sampler: {sampler}")
+            if sampler != "k_euler":
+                sampler = sampler.value
+            #logger.info(f"Sampler: {sampler}")
 
             params = {
                 "positive": positive,
@@ -105,12 +109,12 @@ class NAI(commands.Cog):
 
             
             # Add the request to the queue
-            await nai_queue.add_to_queue(interaction, params)
-            await interaction.followup.send("Your request has been added to the queue. Please wait...")
+            message = await interaction.edit_original_response(content="Your request has been added to the queue. Please wait...")
+            await nai_queue.add_to_queue(interaction, params, message)
 
         except Exception as e:
             logger.error(f"Error in NAI command: {str(e)}")
-            await interaction.followup.send(f"An error occurred while queueing the image generation. `{str(e)}`")
+            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. `{str(e)}`")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))

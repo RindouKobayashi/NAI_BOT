@@ -2,13 +2,16 @@ import asyncio
 import aiohttp
 import io
 import zipfile
-from discord import Interaction, File
+from discord.ext import commands
+from discord import Interaction, File, Message, Activity, ActivityType
 from settings import logger, NAI_API_TOKEN
 from collections import namedtuple
 from pathlib import Path
+from datetime import datetime
+from main import bot
 
 # Define a named tuple for queue items
-QueueItem = namedtuple('QueueItem', ['interaction', 'params'])
+QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message'])
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
@@ -27,9 +30,10 @@ class NAIQueue:
         self.session = None
         self.output_dir = Path("nai_output")
         self.output_dir.mkdir(exist_ok=True)
+        self.bot = bot
 
-    async def add_to_queue(self, interaction: Interaction, params: dict):
-        await self.queue.put(QueueItem(interaction, params))
+    async def add_to_queue(self, interaction: Interaction, params: dict, message: Message):
+        await self.queue.put(QueueItem(interaction, params, message))
 
     async def process_queue(self):
         self.session = aiohttp.ClientSession()
@@ -39,8 +43,9 @@ class NAIQueue:
             self.queue.task_done()
 
     async def _process_item(self, item: QueueItem):
-        interaction, params = item
+        interaction, params, message = item
         interaction: Interaction
+        message : Message
         try:
             # Prepare parameters for the API call
             nai_params = {
@@ -61,6 +66,11 @@ class NAIQueue:
                 "quality_toggle": False,
             }
 
+            message = await message.edit(content="Generating image...")
+
+            # Start the timer
+            start_time = datetime.now()
+
             # Call the NovelAI API
             zipped_bytes = await NovelAIAPI.generate_image(
                 self.session, 
@@ -76,17 +86,31 @@ class NAIQueue:
             image_bytes = zipped.read(zipped.infolist()[0])
 
             # Save the image
-            file = f"nai_generated_{interaction.id}.png"
-            (self.output_dir / file).write_bytes(image_bytes)
+            file_path = f"nai_generated_{interaction.id}.png"
+            (self.output_dir / file_path).write_bytes(image_bytes)
+
+            # Stop the timer
+            end_time = datetime.now()
+            elapsed_time = end_time - start_time
+            elapsed_time = round(elapsed_time.total_seconds(), 2)
+
+            # Some information
+            reply_content = f"Seed: `{params['seed']}` | Elapsed time: `{elapsed_time}s`"
+
 
             # Send the image to Discord
-            await interaction.followup.send(
-                file=File(io.BytesIO(image_bytes), filename="generated_image.png")
+            files = []
+            file = File(f"{self.output_dir}/{file_path}")
+            files.append(file)
+            await message.edit(
+                content=reply_content,
+                attachments=files
             )
 
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
-            await interaction.followup.send(f"An error occurred while processing your request: {str(e)}")
+            reply_content = f"An error occurred while processing your request: {str(e)}"
+            await message.edit(content=reply_content)
 
     async def start(self):
         asyncio.create_task(self.process_queue())
