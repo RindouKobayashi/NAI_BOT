@@ -91,6 +91,12 @@ class NAI(commands.Cog):
 
             await interaction.followup.send("Checking parameters...")
 
+            # Check if command used in server 1024739383124963429
+            if interaction.guild.id == 1024739383124963429:
+                # Check if command used in channel 1261084844230705182
+                if interaction.channel.id != 1261084844230705182:
+                    raise ValueError(f"`Command can only be used in `<#{1261084844230705182}>")
+
             # Process model
             if model != "nai-diffusion-3":
                 model = model.value
@@ -98,11 +104,11 @@ class NAI(commands.Cog):
             # Check pixel limit
             pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3") else 640*640
             if width*height > pixel_limit:
-                raise ValueError(f"Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).")
+                raise ValueError(f"`Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).`")
             
             # Check steps limit
             if steps > 28:
-                raise ValueError("Steps must be less than or equal to 28.")
+                raise ValueError("`Steps must be less than or equal to 28.`")
             
             # Check seed
             if seed <= 0:
@@ -172,7 +178,7 @@ class NAI(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in NAI command: {str(e)}")
-            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. `{str(e)}`")
+            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
 
     @app_commands.command(name="vibe_transfer", description="Store reference images for vibe transfer with info and strength value")
     @app_commands.allowed_installs(guilds=True, users=True)
