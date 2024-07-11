@@ -27,7 +27,7 @@ def run():
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
 
         # Start queuehandler
-        asyncio.create_task(queuehandler.start_queue())
+        await queuehandler.start_queue()
 
 
 

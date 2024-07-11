@@ -64,16 +64,33 @@ class NAIQueue:
     async def process_queue(self):
         self.session = aiohttp.ClientSession()
         while True:
-            item = await self.queue.get()
-            self.queue_list.pop(0)
+            try:
+                # Use get_running_loop() to ensure we're using the correct event loop
+                loop = asyncio.get_running_loop()
+                
+                # Wait for an item to be available in the queue
+                item = await self.queue.get()
+                
+                if self.queue_list:
+                    self.queue_list.pop(0)
+                else:
+                    logger.warning("Queue list is empty but an item was received from the queue.")
 
-            # Decrement the user's request count
-            user_id = item.interaction.user.id
-            self.user_request_count[user_id] = max(0, self.user_request_count.get(user_id) - 1)
+                # Decrement the user's request count
+                user_id = item.interaction.user.id
+                self.user_request_count[user_id] = max(0, self.user_request_count.get(user_id, 0) - 1)
 
-            await self.update_queue_positions()
-            await self._process_item(item)
-            self.queue.task_done()
+                await self.update_queue_positions()
+                await self._process_item(item)
+                self.queue.task_done()
+            except asyncio.CancelledError:
+                logger.info("Queue processing was cancelled.")
+                break
+            except Exception as e:
+                logger.error(f"Error in process_queue: {str(e)}")
+                # Add a small delay to avoid tight loop in case of persistent errors
+                await asyncio.sleep(1)
+
 
     async def _process_item(self, item: QueueItem):
         interaction, params, message, _ = item
