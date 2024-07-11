@@ -4,11 +4,16 @@ import io
 import zipfile
 from discord.ext import commands
 from discord import Interaction, File, Message, Activity, ActivityType
-from settings import logger, NAI_API_TOKEN
+from settings import logger, NAI_API_TOKEN, DATABASE_DIR
 from collections import namedtuple
 from pathlib import Path
 from datetime import datetime
 from main import bot
+import base64
+import json
+
+# Import utility functions (image_to_base64)
+from cogs.nai_utils import image_to_base64
 
 # Define a named tuple for queue items
 QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message', 'position'])
@@ -91,8 +96,26 @@ class NAIQueue:
                 "cfg_rescale": 0,
                 "noise_schedule": "native",
                 "legacy": False,
-                "quality_toggle": False,
             }
+            #logger.info(f"Generating image with parameters: {nai_params}")
+
+            # Check if vibe transfer is enabled
+            if params['vibe_transfer_switch']:
+                # Extract image, info and strength value from user database
+                user_file_path = f"{DATABASE_DIR}/{interaction.user.id}.json"
+                nai_params['reference_image_multiple'] = []
+                nai_params['reference_information_extracted_multiple'] = []
+                nai_params['reference_strength_multiple'] = []
+
+                if Path(user_file_path).exists():
+                    with open(user_file_path, "r") as user_file:
+                        user_data = json.load(user_file)
+                        for entry in user_data:
+                            # Append image, info_extracted and ref_strength to nai_params
+                            nai_params['reference_image_multiple'].append(entry['image'])
+                            nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
+                            nai_params['reference_strength_multiple'].append(entry['ref_strength'])
+
 
             message = await message.edit(content="Generating image...")
 
