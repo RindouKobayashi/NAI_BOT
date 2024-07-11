@@ -4,5 +4,4 @@ python-dotenv
 pillow
 argon2-cffi
 numpy
-torch
 datetime

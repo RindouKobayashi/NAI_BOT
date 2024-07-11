@@ -3,7 +3,7 @@ import io
 import re
 import numpy as np
 from PIL import Image, ImageOps
-import torch
+#import torch
 
 def prompt_to_nai(prompt, weight_per_brace=0.05):
     def prompt_to_stack(sentence):
@@ -52,12 +52,12 @@ def image_to_base64(image):
     img.save(image_bytesIO, format="png")
     return base64.b64encode(image_bytesIO.getvalue()).decode()
 
-def bytes_to_image(image_bytes):
-    i = Image.open(io.BytesIO(image_bytes))
-    i = i.convert("RGB")
-    i = ImageOps.exif_transpose(i)
-    image = np.array(i).astype(np.float32) / 255.0
-    return torch.from_numpy(image)[None,]
+#def bytes_to_image(image_bytes):
+#    i = Image.open(io.BytesIO(image_bytes))
+#    i = i.convert("RGB")
+#    i = ImageOps.exif_transpose(i)
+#    image = np.array(i).astype(np.float32) / 255.0
+#    return torch.from_numpy(image)[None,]
 
 def calculate_resolution(pixel_count, aspect_ratio):
     pixel_count = pixel_count / 4096
@@ -67,21 +67,21 @@ def calculate_resolution(pixel_count, aspect_ratio):
     height = int(np.floor(k * h / w) * 64)
     return width, height
 
-def resize_image(image, size_to):
-    samples = image.movedim(-1,1)
-    w, h = size_to
-    s = torch.nn.functional.interpolate(samples, (h, w), mode="bilinear", align_corners=False)
-    s = s.movedim(1,-1)
-    return s
+#def resize_image(image, size_to):
+#    samples = image.movedim(-1,1)
+#    w, h = size_to
+#    s = torch.nn.functional.interpolate(samples, (h, w), mode="bilinear", align_corners=False)
+#    s = s.movedim(1,-1)
+#    return s
 
-def resize_to_naimask(mask, image_size=None):
-    samples = mask.movedim(-1,1)
-    w, h = (samples.shape[3], samples.shape[2]) if not image_size else image_size
-    width = int(np.ceil(w / 64) * 8)
-    height = int(np.ceil(h / 64) * 8)
-    s = torch.nn.functional.interpolate(samples, (height, width), mode="nearest")
-    s = s.movedim(1,-1)
-    return s
+#def resize_to_naimask(mask, image_size=None):
+#    samples = mask.movedim(-1,1)
+#    w, h = (samples.shape[3], samples.shape[2]) if not image_size else image_size
+#    width = int(np.ceil(w / 64) * 8)
+#    height = int(np.ceil(h / 64) * 8)
+#    s = torch.nn.functional.interpolate(samples, (height, width), mode="nearest")
+#    s = s.movedim(1,-1)
+#    return s
 
 def naimask_to_base64(image):
     i = 255. * image[0].cpu().numpy()
