@@ -15,7 +15,7 @@ import random
 import json
 
 # Import utility functions
-from .nai_utils import prompt_to_nai, image_to_base64, bytes_to_image, calculate_resolution
+from .nai_utils import prompt_to_nai, calculate_resolution
 
 
 
