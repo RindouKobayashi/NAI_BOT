@@ -160,7 +160,7 @@ class NAIQueue:
             image_bytes = zipped.read(zipped.infolist()[0])
 
             # Save the image
-            file_path = f"nai_generated_{interaction.id}.png"
+            file_path = f"nai_generated_{interaction.user.id}.png"
             (self.output_dir / file_path).write_bytes(image_bytes)
 
             # Stop the timer
@@ -169,7 +169,7 @@ class NAIQueue:
             elapsed_time = round(elapsed_time.total_seconds(), 2)
 
             # Some information
-            reply_content = f"Seed: `{params['seed']}` | Elapsed time: `{elapsed_time}s`"
+            reply_content = f"Seed: `{params['seed']}` | Elapsed time: `{elapsed_time}s`\nBy: {interaction.user.mention}"
 
 
             # Send the image to Discord
@@ -184,6 +184,10 @@ class NAIQueue:
             # Check if channel posted on is 1157817614245052446 then add reaction
             if interaction.channel.id == 1157817614245052446:
                 await message.add_reaction("🔎")
+
+            # Check if channel posted on is 1261084844230705182 then add reaction
+            if interaction.channel.id == 1261084844230705182:
+                await message.add_reaction("🗑️")
 
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")

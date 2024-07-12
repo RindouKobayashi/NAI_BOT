@@ -65,6 +65,38 @@ class basic(commands.Cog):
         message = await channel.send(f"Bye bye world!")
         message = await message.add_reaction("<:agony:1161203375598223370>")
         await self.bot.close()
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        """Check if reaction is 🗑️, if it's in certain channel and message by bot, if yes, delete it"""
+
+        # Check if bot is reacting
+        if payload.user_id == self.bot.user.id:
+            return
+        
+        # Check payload.message's mentions
+        message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+        if not message.mentions:
+            return
+        
+        # Original command author
+        original_user = message.mentions[0]
+
+        # Check if it's the original command author
+        if original_user.id != payload.user_id:
+            return
+
+        # Check if it's in the correct channel (replace with your actual channel ID)
+        if payload.channel_id != 1261084844230705182:
+            return
+
+        # Check if reaction is 🗑️
+        if payload.emoji.name != "🗑️":
+            return
+        
+        # Delete message
+        await message.delete()
+
         
 
     
