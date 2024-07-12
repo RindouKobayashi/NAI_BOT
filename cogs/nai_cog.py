@@ -103,7 +103,7 @@ class NAI(commands.Cog):
                 model = model.value
 
             # Check pixel limit
-            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3, nai-diffusion-furry-3") else 640*640
+            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3") else 640*640
             if width*height > pixel_limit:
                 raise ValueError(f"`Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).`")
             
