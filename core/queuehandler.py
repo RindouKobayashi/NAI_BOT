@@ -11,6 +11,7 @@ from datetime import datetime
 from main import bot
 import base64
 import json
+from asyncio import CancelledError
 
 # Import utility functions (image_to_base64)
 from cogs.nai_utils import image_to_base64
@@ -65,9 +66,6 @@ class NAIQueue:
         self.session = aiohttp.ClientSession()
         while True:
             try:
-                # Use get_running_loop() to ensure we're using the correct event loop
-                loop = asyncio.get_running_loop()
-                
                 # Wait for an item to be available in the queue
                 item = await self.queue.get()
                 
@@ -83,12 +81,19 @@ class NAIQueue:
                 await self.update_queue_positions()
                 await self._process_item(item)
                 self.queue.task_done()
-            except asyncio.CancelledError:
+            except CancelledError:
                 logger.info("Queue processing was cancelled.")
                 break
+            except RuntimeError as e:
+                if "attached to a different loop" in str(e):
+                    logger.warning(f"Encountered loop mismatch error: {e}. Continuing operation.")
+                    # Optionally, you could add a small delay here to prevent rapid logging
+                    # await asyncio.sleep(0.1)
+                else:
+                    logger.error(f"Unexpected RuntimeError in process_queue: {e}")
+                    await asyncio.sleep(1)
             except Exception as e:
                 logger.error(f"Error in process_queue: {str(e)}")
-                # Add a small delay to avoid tight loop in case of persistent errors
                 await asyncio.sleep(1)
 
 
