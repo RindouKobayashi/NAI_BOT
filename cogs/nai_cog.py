@@ -125,8 +125,12 @@ class NAI(commands.Cog):
                 sampler = sampler.value
             #logger.info(f"Sampler: {sampler}")
 
-            # Process prompt with tags
+            # Process prompt and negative prompt with function prompt_to_nai
             positive = prompt_to_nai(positive)
+            if negative is not None:
+                negative = prompt_to_nai(negative)
+
+            # Process prompt with tags
             if quality_toggle:
                 positive = f"{positive}, best quality, amazing quality, very aesthetic, absurdres"
 
