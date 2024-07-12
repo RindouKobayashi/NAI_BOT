@@ -46,6 +46,7 @@ class NAI(commands.Cog):
             app_commands.Choice(name="nai-diffusion", value="nai-diffusion"),
             app_commands.Choice(name="safe-diffusion", value="safe-diffusion"),
             app_commands.Choice(name="nai-diffusion-furry", value="nai-diffusion-furry"),
+            app_commands.Choice(name="nai-diffusion-furry-3", value="nai-diffusion-furry-3"),
         ],
         undesired_content_presets=[
             app_commands.Choice(name="Heavy", value="heavy"),
@@ -102,7 +103,7 @@ class NAI(commands.Cog):
                 model = model.value
 
             # Check pixel limit
-            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3") else 640*640
+            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3, nai-diffusion-furry-3") else 640*640
             if width*height > pixel_limit:
                 raise ValueError(f"`Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).`")
             
