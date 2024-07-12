@@ -86,9 +86,10 @@ class NAIQueue:
                 break
             except RuntimeError as e:
                 if "attached to a different loop" in str(e):
-                    logger.warning(f"Encountered loop mismatch error: {e}. Continuing operation.")
+                    #logger.warning(f"Encountered loop mismatch error: {e}. Continuing operation.")
                     # Optionally, you could add a small delay here to prevent rapid logging
                     # await asyncio.sleep(0.1)
+                    pass
                 else:
                     logger.error(f"Unexpected RuntimeError in process_queue: {e}")
                     await asyncio.sleep(1)
