@@ -66,6 +66,13 @@ class basic(commands.Cog):
         message = await message.add_reaction("<:agony:1161203375598223370>")
         await self.bot.close()
 
+    @app_commands.command(name="how_to_vibe_transfer", description="How to vibe transfer")
+    async def vibe_transfer(self, interaction: discord.Interaction):
+        """How to vibe transfer"""
+        logger.info(f"COMMAND 'How_to_vibe_transfer' USED BY: {interaction.user} ({interaction.user.id})")
+        await interaction.response.send_message(f"For vibe transfer: please use vibe_transfer command. You are allowed 5 images with their values. All of these will be stored as base64 strings and corresponding values in json. When using nai command, you can use vibe_transfer_switch to true to auto retrieve your own vibe transfer data.", ephemeral=True)
+
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         """Check if reaction is 🗑️, if it's in certain channel and message by bot, if yes, delete it"""
@@ -74,10 +81,28 @@ class basic(commands.Cog):
         if payload.user_id == self.bot.user.id:
             return
         
+        # Check if reaction is 🗑️
+        if payload.emoji.name != "🗑️":
+            return
+        
+        # Check if it's in the correct channel (replace with your actual channel ID)
+        if payload.channel_id != settings.CHANNEL_ID_TEST:
+            return
+        
         # Check payload.message's mentions
         message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
         if not message.mentions:
             return
+        
+        # Check number of reactions
+        trash_count = 0
+        for react in message.reactions:
+            if react.emoji == "🗑️":
+                trash_count += 1
+        logger.info(f"TRASH COUNT: {trash_count}")
+        if trash_count > 1:
+            logger.info(f"TRASHED MESSAGE: {message.id}")
+            await message.delete()
         
         # Original command author
         original_user = message.mentions[0]
@@ -85,14 +110,7 @@ class basic(commands.Cog):
         # Check if it's the original command author
         if original_user.id != payload.user_id:
             return
-
-        # Check if it's in the correct channel (replace with your actual channel ID)
-        if payload.channel_id != 1261084844230705182:
-            return
-
-        # Check if reaction is 🗑️
-        if payload.emoji.name != "🗑️":
-            return
+        
         
         # Delete message
         await message.delete()

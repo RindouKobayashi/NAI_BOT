@@ -9,7 +9,7 @@ from logging.config import dictConfig
 
 load_dotenv()
 
-DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
+DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
 NAI_EMAIL = os.getenv("NAI_EMAIL")
 NAI_PASSWORD = os.getenv("NAI_PASSWORD")
 NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
@@ -17,6 +17,12 @@ NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
 BASE_DIR = pathlib.Path(__file__).parent
 COGS_DIR = BASE_DIR / "cogs"
 DATABASE_DIR = BASE_DIR / "database"
+
+CHANNEL_ID_TEST = 1188501454806339685
+SERVER_ID_TEST = 1157816835975151706
+
+CHANNEL_ID = 1261084844230705182
+SERVER_ID = 1024739383124963429
 
 LOGGING_CONFIG = {
     "version": 1,

@@ -11,6 +11,7 @@ from datetime import datetime
 from main import bot
 import base64
 import json
+import settings
 from asyncio import CancelledError
 
 # Import utility functions (image_to_base64)
@@ -186,7 +187,9 @@ class NAIQueue:
                 await message.add_reaction("🔎")
 
             # Check if channel posted on is 1261084844230705182 then add reaction
-            if interaction.channel.id == 1261084844230705182:
+            logger.info(f"{interaction.channel.id} = {settings.CHANNEL_ID_TEST}")
+            if interaction.channel.id == settings.CHANNEL_ID_TEST:
+                logger.info(f"Adding reaction to {message.id}")
                 await message.add_reaction("🗑️")
 
         except Exception as e:

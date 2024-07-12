@@ -63,8 +63,9 @@ class NAI(commands.Cog):
         sampler="Sampling method (default: k_euler)",
         seed="Seed for generation (default: 0, random)",
         model="Model to use (default: nai-diffusion-3)",
-        quality_toggle="Tags to increase qualityh will be prepended to the prompt (default: False)",
-        undesired_content_presets="Undesired content presets (default: None)",
+        quality_toggle="Tags to increase qualityh will be prepended to the prompt (default: True)",
+        undesired_content_presets="Undesired content presets (default: Heavy)",
+        prompt_conversation_toggle="Convert Auto1111 way of prompt to NovelAI way of prompt (default: False)",
         vibe_transfer_switch="Vibe transfer switch (default: False)",
     )
     async def nai(self, interaction: discord.Interaction, 
@@ -77,8 +78,9 @@ class NAI(commands.Cog):
                   sampler: app_commands.Choice[str] = "k_euler", 
                   seed: int = 0,
                   model: app_commands.Choice[str] = "nai-diffusion-3",
-                  quality_toggle: bool = False,
-                  undesired_content_presets: app_commands.Choice[str] = None,
+                  quality_toggle: bool = True,
+                  undesired_content_presets: app_commands.Choice[str] = "heavy",
+                  prompt_conversation_toggle: bool = False,
                   vibe_transfer_switch: bool = False,
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
@@ -125,17 +127,20 @@ class NAI(commands.Cog):
                 sampler = sampler.value
             #logger.info(f"Sampler: {sampler}")
 
-            # Process prompt and negative prompt with function prompt_to_nai
-            positive = prompt_to_nai(positive)
-            if negative is not None:
-                negative = prompt_to_nai(negative)
+            # Process prompt and negative prompt with function prompt_to_nai if prompt_conversation_toggle is True
+            if prompt_conversation_toggle:
+                positive = prompt_to_nai(positive)
+                if negative is not None:
+                    negative = prompt_to_nai(negative)
 
             # Process prompt with tags
             if quality_toggle:
                 positive = f"{positive}, best quality, amazing quality, very aesthetic, absurdres"
 
             # Process negative prompt with tags
-            if undesired_content_presets is not None:
+            if undesired_content_presets == "heavy":
+                undesired_content_presets = app_commands.Choice(name="Heavy", value="heavy")
+            if undesired_content_presets != None:
                 # Check if negative prompt is empty
                 if negative is None:
                     negative = ""
