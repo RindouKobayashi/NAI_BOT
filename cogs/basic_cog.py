@@ -86,23 +86,23 @@ class basic(commands.Cog):
             return
         
         # Check if it's in the correct channel (replace with your actual channel ID)
-        if payload.channel_id != settings.CHANNEL_ID_TEST:
+        if payload.channel_id != settings.CHANNEL_ID:
             return
         
-        # Check payload.message's mentions
+        # Get payload.message
         message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-        if not message.mentions:
-            return
         
         # Check number of reactions
-        trash_count = 0
-        for react in message.reactions:
-            if react.emoji == "🗑️":
-                trash_count += 1
-        logger.info(f"TRASH COUNT: {trash_count}")
-        if trash_count > 1:
-            logger.info(f"TRASHED MESSAGE: {message.id}")
-            await message.delete()
+        for reaction in message.reactions:
+            if reaction.emoji == "🗑️":
+                # Check if reaction count is above 2
+                if reaction.count > 2:
+                    await message.delete()
+                    break
+        
+        # Check if there's at least one mention
+        if not message.mentions:
+            return
         
         # Original command author
         original_user = message.mentions[0]
@@ -110,7 +110,6 @@ class basic(commands.Cog):
         # Check if it's the original command author
         if original_user.id != payload.user_id:
             return
-        
         
         # Delete message
         await message.delete()
