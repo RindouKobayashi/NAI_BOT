@@ -52,6 +52,7 @@ class NAI(commands.Cog):
             app_commands.Choice(name="Heavy", value="heavy"),
             app_commands.Choice(name="Light", value="light"),
             app_commands.Choice(name="Human_Focus", value="human_focus"),
+            app_commands.Choice(name="None", value="none"),
         ]
     )
     @app_commands.describe(
