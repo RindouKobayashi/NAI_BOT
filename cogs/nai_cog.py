@@ -95,10 +95,10 @@ class NAI(commands.Cog):
             await interaction.followup.send("Checking parameters...")
 
             # Check if command used in server 1024739383124963429
-            if interaction.guild.id == 1024739383124963429:
+            if interaction.guild.id == settings.SERVER_ID:
                 # Check if command used in channel 1261084844230705182
-                if interaction.channel.id != 1261084844230705182:
-                    raise ValueError(f"`Command can only be used in `<#{1261084844230705182}>")
+                if interaction.channel.id != settings.CHANNEL_ID:
+                    raise ValueError(f"`Command can only be used in `<#{settings.CHANNEL_ID}>")
 
             # Process model
             if model != "nai-diffusion-3":
