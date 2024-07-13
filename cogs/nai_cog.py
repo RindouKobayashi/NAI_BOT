@@ -1,11 +1,12 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from settings import logger
+from settings import logger, AUTOCOMPLETE_DATA
 import base64
 import io
 import requests
 import dotenv
+import asyncio
 from os import environ as env
 import zipfile
 from pathlib import Path
@@ -190,6 +191,37 @@ class NAI(commands.Cog):
         except Exception as e:
             logger.error(f"Error in NAI command: {str(e)}")
             await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+
+    @nai.autocomplete('positive')
+    async def nai_positive_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        def search_current_term(query):
+            terms = query.split(',')
+            current_term = terms[-1].strip().lower()
+            
+            if not current_term:
+                return []
+
+            results = [
+                tag for tag in AUTOCOMPLETE_DATA
+                if tag.lower().startswith(current_term)
+            ]
+
+            return results[:25]  # Limit to 25 results as per Discord's limit
+
+        results = await asyncio.to_thread(search_current_term, current)
+        
+        # Prepare the choices, including the parts of the query that are already typed
+        prefix = ','.join(current.split(',')[:-1]).strip()
+        if prefix:
+            prefix += ', '
+        
+        valid_choices = [
+            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}")
+            for item in results
+            if len(item) > 0  # Ensure item is not empty
+        ]
+        
+        return valid_choices
 
     @app_commands.command(name="vibe_transfer", description="Store reference images for vibe transfer with info and strength value")
     @app_commands.allowed_installs(guilds=True, users=True)
