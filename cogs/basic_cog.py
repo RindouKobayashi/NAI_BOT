@@ -1,7 +1,7 @@
 import discord
 import settings
 import asyncio
-from settings import logger
+from settings import logger, AUTOCOMPLETE_DATA
 from discord import app_commands
 from discord.ext import commands
 
@@ -71,6 +71,29 @@ class basic(commands.Cog):
         """How to vibe transfer"""
         logger.info(f"COMMAND 'How_to_vibe_transfer' USED BY: {interaction.user} ({interaction.user.id})")
         await interaction.response.send_message(f"For vibe transfer: please use vibe_transfer command. You are allowed 5 images with their values. All of these will be stored as base64 strings and corresponding values in json. When using nai command, you can use vibe_transfer_switch to true to auto retrieve your own vibe transfer data.", ephemeral=True)
+
+    # A test command that check against AUTOCOMPLETE_DATA
+    @app_commands.command(name="test", description="Test command")
+    async def test(self, interaction: discord.Interaction, item: str):
+        """Test command"""
+        await interaction.response.send_message(f"Item: {item}", ephemeral=True)
+    @test.autocomplete("item")
+    async def test_autocomplete(self, interaction: discord.Interaction, current: str):
+        def search():
+            return [
+                item for item in AUTOCOMPLETE_DATA
+                if current.lower() in item.lower()
+            ][:25]  # Limit to 25 results as per Discord's limit
+
+        results = await asyncio.to_thread(search)
+        # Ensure all choice names are valid (between 1 and 100 characters)
+        valid_choices = [
+            app_commands.Choice(name=item[:100], value=item)  # Truncate name if necessary
+            for item in results
+            if len(item) > 0  # Ensure item is not empty
+        ]
+        
+        return valid_choices
 
 
     @commands.Cog.listener()

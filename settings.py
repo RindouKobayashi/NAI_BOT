@@ -3,13 +3,14 @@ import os
 import discord
 import logging
 import asyncio
+import csv
 
 from dotenv import load_dotenv
 from logging.config import dictConfig
 
 load_dotenv()
 
-DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
+DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
 NAI_EMAIL = os.getenv("NAI_EMAIL")
 NAI_PASSWORD = os.getenv("NAI_PASSWORD")
 NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
@@ -74,3 +75,13 @@ LOGGING_CONFIG = {
 logger = logging.getLogger("bot")
 
 dictConfig(LOGGING_CONFIG)
+
+AUTOCOMPLETE_DATA = []
+
+with open("danbooru.csv", newline="", encoding="utf-8") as csvfile:
+    reader = csv.reader(csvfile)
+    for row in reader:
+        keyword = row[0].strip()
+        AUTOCOMPLETE_DATA.append(keyword)  # Store just the keyword
+
+#logger.info(f"AUTOCOMPLETE_DATA: {AUTOCOMPLETE_DATA}")
