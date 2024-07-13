@@ -73,22 +73,35 @@ class basic(commands.Cog):
         await interaction.response.send_message(f"For vibe transfer: please use vibe_transfer command. You are allowed 5 images with their values. All of these will be stored as base64 strings and corresponding values in json. When using nai command, you can use vibe_transfer_switch to true to auto retrieve your own vibe transfer data.", ephemeral=True)
 
     # A test command that check against AUTOCOMPLETE_DATA
-    @app_commands.command(name="test", description="Test command")
-    async def test(self, interaction: discord.Interaction, item: str):
-        """Test command"""
-        await interaction.response.send_message(f"Item: {item}", ephemeral=True)
-    @test.autocomplete("item")
-    async def test_autocomplete(self, interaction: discord.Interaction, current: str):
-        def search():
-            return [
-                item for item in AUTOCOMPLETE_DATA
-                if current.lower() in item.lower()
-            ][:25]  # Limit to 25 results as per Discord's limit
+    @app_commands.command(name="search", description="Search with multiple independent terms")
+    async def search(self, interaction: discord.Interaction, query: str):
+        await interaction.response.send_message(f"You searched for: {query}")
 
-        results = await asyncio.to_thread(search)
-        # Ensure all choice names are valid (between 1 and 100 characters)
+    @search.autocomplete('query')
+    async def search_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        def search_current_term(query):
+            terms = query.split(',')
+            current_term = terms[-1].strip().lower()
+            
+            if not current_term:
+                return []
+
+            results = [
+                item for item in AUTOCOMPLETE_DATA
+                if item.lower().startswith(current_term)
+            ]
+
+            return results[:25]  # Limit to 25 results as per Discord's limit
+
+        results = await asyncio.to_thread(search_current_term, current)
+        
+        # Prepare the choices, including the parts of the query that are already typed
+        prefix = ','.join(current.split(',')[:-1]).strip()
+        if prefix:
+            prefix += ', '
+        
         valid_choices = [
-            app_commands.Choice(name=item[:100], value=item)  # Truncate name if necessary
+            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}")
             for item in results
             if len(item) > 0  # Ensure item is not empty
         ]
