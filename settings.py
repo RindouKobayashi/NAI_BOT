@@ -39,19 +39,22 @@ LOGGING_CONFIG = {
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
-            "formatter": "standard"
+            "formatter": "standard",
+            "stream": "ext://sys.stdout",
         },
         "console2": {
             "level": "WARNING",
             "class": "logging.StreamHandler",
-            "formatter": "standard"
+            "formatter": "standard",
+            "stream": "ext://sys.stdout",
         },
         "file": {
             "level": "INFO",
             "class": "logging.FileHandler",
             "filename": "logs/infos.log",
             "formatter": "verbose",
-            "mode": "w"
+            "mode": "w",
+            "encoding": "utf-8",
         },        
     },
     "loggers": {
