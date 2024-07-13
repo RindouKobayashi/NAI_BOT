@@ -82,6 +82,8 @@ with open("danbooru.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile)
     for row in reader:
         keyword = row[0].strip()
+        # remove _ from keyword
+        keyword = keyword.replace("_", " ")
         AUTOCOMPLETE_DATA.append(keyword)  # Store just the keyword
 
 #logger.info(f"AUTOCOMPLETE_DATA: {AUTOCOMPLETE_DATA}")
