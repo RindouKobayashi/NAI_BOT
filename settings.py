@@ -10,7 +10,7 @@ from logging.config import dictConfig
 
 load_dotenv()
 
-DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
+DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
 NAI_EMAIL = os.getenv("NAI_EMAIL")
 NAI_PASSWORD = os.getenv("NAI_PASSWORD")
 NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
