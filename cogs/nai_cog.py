@@ -46,6 +46,7 @@ class NAI(commands.Cog):
             app_commands.Choice(name="nai-diffusion", value="nai-diffusion"),
             app_commands.Choice(name="safe-diffusion", value="safe-diffusion"),
             app_commands.Choice(name="nai-diffusion-furry", value="nai-diffusion-furry"),
+            app_commands.Choice(name="nai-diffusion-furry-3", value="nai-diffusion-furry-3"),
         ],
         undesired_content_presets=[
             app_commands.Choice(name="Heavy", value="heavy"),
@@ -104,7 +105,7 @@ class NAI(commands.Cog):
                 model = model.value
 
             # Check pixel limit
-            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3") else 640*640
+            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3") else 640*640
             if width*height > pixel_limit:
                 raise ValueError(f"`Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).`")
             
@@ -150,13 +151,13 @@ class NAI(commands.Cog):
                         negative = "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]," + negative
                     elif model == "nai-diffusion-2":
                         negative = "lowres, bad, text, error, missing, extra, fewer, cropped, jpeg artifacts, worst quality, bad quality, watermark, displeasing, unfinished, chromatic aberration, scan, scan artifacts," + negative
-                    elif model == "nai-diffusion-furry":
+                    elif model == "nai-diffusion-furry" or model == "nai-diffusion-furry-3":
                         negative = "{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast," + negative
                 elif undesired_content_presets.value == "light":
                     # Check model to see what tags to add
                     if model == "nai-diffusion-3" or model == "nai-diffusion-2":
                         negative = "lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing," + negative
-                    elif model == "nai-diffusion-furry":
+                    elif model == "nai-diffusion-furry" or model == "nai-diffusion-furry-3":
                         negative = "{worst quality}, guide lines, unfinished, bad, url, tall image, widescreen, compression artifacts, unknown text," + negative
                 elif undesired_content_presets.value == "human_focus":
                     # Check model to see what tags to add
