@@ -40,7 +40,7 @@ class PaginationView(View):
         return embed, file
     
     async def update_message(self):
-        self.update_buttons()
+        await self.update_buttons()
         embed, file = await self.create_embed()
         await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file])
     
@@ -51,7 +51,16 @@ class PaginationView(View):
         with open(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json", "r") as f:
             return json.load(f)
         
-    def update_buttons(self):
+    async def delete_json_data(self):
+        vibe_transfer_data = await self.get_json_data()
+        if self.current_page <= len(vibe_transfer_data):
+            del vibe_transfer_data[self.current_page - 1]
+
+        with open(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json", "w") as f:
+            json.dump(vibe_transfer_data, f, indent=4)
+
+        
+    async def update_buttons(self):
         if self.current_page == 1:
             self.goto_first.disabled = True
             self.goto_previous.disabled = True
@@ -65,6 +74,11 @@ class PaginationView(View):
         else:
             self.goto_next.disabled = False
             self.goto_last.disabled = False
+
+        if self.current_page <= len(await self.get_json_data()):
+            self.delete.disabled = False
+        else:
+            self.delete.disabled = True
 
     @discord.ui.button(emoji="⏪",
                         style=discord.ButtonStyle.primary,
@@ -96,4 +110,12 @@ class PaginationView(View):
     async def goto_last(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         self.current_page = 5
+        await self.update_message()
+
+    @discord.ui.button(emoji="❌",
+                        style=discord.ButtonStyle.danger,
+                        label="Delete")
+    async def delete(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.defer()
+        await self.delete_json_data()
         await self.update_message()
