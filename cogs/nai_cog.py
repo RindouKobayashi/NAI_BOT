@@ -14,6 +14,7 @@ import settings
 from core.queuehandler import nai_queue
 import random
 import json
+from core.viewhandler import PaginationView
 
 # Import utility functions
 from .nai_utils import prompt_to_nai, calculate_resolution
@@ -336,6 +337,15 @@ class NAI(commands.Cog):
         except Exception as e:
             logger.error(f"Error in NAI command: {str(e)}")
             await interaction.edit_original_response(content=f"An error occurred while processing the command. `{str(e)}`")
+
+    @app_commands.command(name="view_vibe_transfer", description="View your saved vibe transfer data and edit them")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    async def view_vibe_transfer(self, interaction: discord.Interaction):
+        logger.info(f"COMMAND 'VIEW_VIBE_TRANSFER' USED BY: {interaction.user} ({interaction.user.id})")
+        await interaction.response.defer()
+        pagination_view = PaginationView(interaction=interaction)
+        await pagination_view.send()
+        
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))
