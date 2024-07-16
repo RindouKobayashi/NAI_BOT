@@ -1,10 +1,10 @@
 import discord
 from discord.ui import View, Button
-from settings import DATABASE_DIR, logger
+from settings import USER_VIBE_TRANSFER_DIR, logger, DATABASE_DIR
 import base64
 import json
 import os
-from cogs.nai_utils import base64_to_image
+from core.nai_utils import base64_to_image
 
 class PaginationView(View):
     def __init__(self, interaction: discord.Interaction):
@@ -46,9 +46,9 @@ class PaginationView(View):
     
     async def get_json_data(self):
         # Check if file exists
-        if not os.path.exists(f"{DATABASE_DIR}/{self.interaction.user.id}.json"):
+        if not os.path.exists(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json"):
             return None
-        with open(f"{DATABASE_DIR}/{self.interaction.user.id}.json", "r") as f:
+        with open(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json", "r") as f:
             return json.load(f)
         
     def update_buttons(self):

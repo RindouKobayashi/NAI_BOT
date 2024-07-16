@@ -17,7 +17,7 @@ import json
 from core.viewhandler import PaginationView
 
 # Import utility functions
-from .nai_utils import prompt_to_nai, calculate_resolution
+from core.nai_utils import prompt_to_nai, calculate_resolution
 
 
 
@@ -315,7 +315,7 @@ class NAI(commands.Cog):
 
             # Create a json file named their user ID storing in database
             user_id = str(interaction.user.id)
-            user_file_path = f"{settings.DATABASE_DIR}/{user_id}.json"
+            user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
 
             json_data = []
 

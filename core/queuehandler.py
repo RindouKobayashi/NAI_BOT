@@ -4,7 +4,7 @@ import io
 import zipfile
 from discord.ext import commands
 from discord import Interaction, File, Message, Activity, ActivityType
-from settings import logger, NAI_API_TOKEN, DATABASE_DIR
+from settings import logger, NAI_API_TOKEN
 from collections import namedtuple
 from pathlib import Path
 from datetime import datetime
@@ -15,7 +15,7 @@ import settings
 from asyncio import CancelledError
 
 # Import utility functions (image_to_base64)
-from cogs.nai_utils import image_to_base64
+from core.nai_utils import image_to_base64
 
 # Define a named tuple for queue items
 QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message', 'position'])
@@ -126,7 +126,7 @@ class NAIQueue:
             # Check if vibe transfer is enabled
             if params['vibe_transfer_switch']:
                 # Extract image, info and strength value from user database
-                user_file_path = f"{DATABASE_DIR}/{interaction.user.id}.json"
+                user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{interaction.user.id}.json"
                 nai_params['reference_image_multiple'] = []
                 nai_params['reference_information_extracted_multiple'] = []
                 nai_params['reference_strength_multiple'] = []
