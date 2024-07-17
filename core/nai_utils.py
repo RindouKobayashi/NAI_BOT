@@ -52,6 +52,12 @@ def image_to_base64(image):
     img.save(image_bytesIO, format="png")
     return base64.b64encode(image_bytesIO.getvalue()).decode()
 
+def base64_to_image(base64_string):
+    image_data = base64.b64decode(base64_string)
+    image_file = io.BytesIO(image_data)
+    image_file.seek(0)
+    return image_file
+
 #def bytes_to_image(image_bytes):
 #    i = Image.open(io.BytesIO(image_bytes))
 #    i = i.convert("RGB")
