@@ -340,9 +340,9 @@ class NAI(commands.Cog):
 
     @app_commands.command(name="view_vibe_transfer", description="View your saved vibe transfer data and edit them")
     @app_commands.allowed_installs(guilds=True, users=True)
-    async def view_vibe_transfer(self, interaction: discord.Interaction):
+    async def view_vibe_transfer(self, interaction: discord.Interaction, ephemeral: bool = True):
         logger.info(f"COMMAND 'VIEW_VIBE_TRANSFER' USED BY: {interaction.user} ({interaction.user.id})")
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=ephemeral)
         pagination_view = PaginationView(interaction=interaction)
         await pagination_view.send()
         
