@@ -4,16 +4,16 @@ from settings import USER_VIBE_TRANSFER_DIR, logger, DATABASE_DIR
 import base64
 import json
 import os
+from core.modalhandler import EditModal, AddModal
 from core.nai_utils import base64_to_image
 
 class PaginationView(View):
     def __init__(self, interaction: discord.Interaction):
-        super().__init__()
+        super().__init__(timeout=5)
         self.interaction = interaction
         self.current_page: int = 1
 
     async def send(self):
-        #await self.interaction.response.send_message(view=self, delete_after=180)
         self.message = await self.interaction.original_response()
         await self.update_message()
 
@@ -39,10 +39,10 @@ class PaginationView(View):
         embed.set_footer(text=f"Requested by {self.interaction.user}", icon_url=self.interaction.user.display_avatar.url)
         return embed, file
     
-    async def update_message(self):
+    async def update_message(self, content: str = None):
         await self.update_buttons()
         embed, file = await self.create_embed()
-        await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file])
+        await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file], content=content)
     
     async def get_json_data(self):
         # Check if file exists
@@ -80,11 +80,26 @@ class PaginationView(View):
         else:
             self.delete.disabled = True
 
+        if self.current_page > len(await self.get_json_data()):
+            self.edit.disabled = True
+        else:
+            self.edit.disabled = False
+
+        if len(await self.get_json_data()) == 5:
+            self.new.disabled = True
+        else:
+            self.new.disabled = False
+
+    async def check_author(self, interaction: discord.Interaction):
+        return interaction.user == self.interaction.user
+
     @discord.ui.button(emoji="⏪",
                         style=discord.ButtonStyle.primary,
                         label="First Page")
     async def goto_first(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
         self.current_page = 1
         await self.update_message()
 
@@ -93,6 +108,8 @@ class PaginationView(View):
                        label="Previous Page")
     async def goto_previous(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
         self.current_page -= 1
         await self.update_message()
 
@@ -101,6 +118,8 @@ class PaginationView(View):
                        label="Next Page")
     async def goto_next(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
         self.current_page += 1
         await self.update_message()
 
@@ -109,13 +128,42 @@ class PaginationView(View):
                         label="Last Page")
     async def goto_last(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
         self.current_page = 5
         await self.update_message()
 
-    @discord.ui.button(emoji="❌",
+    @discord.ui.button(emoji="🗑️",
                         style=discord.ButtonStyle.danger,
                         label="Delete")
     async def delete(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
         await self.delete_json_data()
         await self.update_message()
+
+    @discord.ui.button(emoji="✏️",
+                        style=discord.ButtonStyle.secondary,
+                        label="Edit")
+    async def edit(self, interaction: discord.Interaction, button: Button):
+        modal = EditModal(title=f"Image {self.current_page} Vibe Transfer Edit", page=self.current_page, update_message=self.update_message)
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(emoji="🆕",
+                        style=discord.ButtonStyle.primary,
+                        label="New")
+    async def new(self, interaction: discord.Interaction, button: Button):
+        modal = AddModal(title=f"Image {len(await self.get_json_data()) + 1} Vibe Transfer Add", update_message=self.update_message) 
+        if not await self.check_author(interaction):
+            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
+        await interaction.response.send_modal(modal)
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        embed, file = await self.create_embed()
+        message = await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file], content=f"`Timed out, deleting in 10 seconds...`")
+        await message.delete(delay=10)
