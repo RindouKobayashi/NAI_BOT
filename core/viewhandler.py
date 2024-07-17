@@ -9,7 +9,7 @@ from core.nai_utils import base64_to_image
 
 class PaginationView(View):
     def __init__(self, interaction: discord.Interaction):
-        super().__init__(timeout=5)
+        super().__init__(timeout=120)
         self.interaction = interaction
         self.current_page: int = 1
 
