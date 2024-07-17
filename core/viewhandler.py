@@ -91,7 +91,8 @@ class PaginationView(View):
             self.new.disabled = False
 
     async def check_author(self, interaction: discord.Interaction):
-        return interaction.user == self.interaction.user
+        #logger.info(f"Checking: {interaction.user.id} == {self.interaction.user.id}")
+        return interaction.user.id == self.interaction.user.id
 
     @discord.ui.button(emoji="⏪",
                         style=discord.ButtonStyle.primary,
@@ -99,9 +100,11 @@ class PaginationView(View):
     async def goto_first(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        self.current_page = 1
-        await self.update_message()
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            self.current_page = 1
+            await self.update_message()
 
     @discord.ui.button(emoji="⬅️",
                        style=discord.ButtonStyle.primary,
@@ -109,9 +112,11 @@ class PaginationView(View):
     async def goto_previous(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        self.current_page -= 1
-        await self.update_message()
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            self.current_page -= 1
+            await self.update_message()
 
     @discord.ui.button(emoji="➡️",
                        style=discord.ButtonStyle.primary,
@@ -119,9 +124,11 @@ class PaginationView(View):
     async def goto_next(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        self.current_page += 1
-        await self.update_message()
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            self.current_page += 1
+            await self.update_message()
 
     @discord.ui.button(emoji="⏩",
                         style=discord.ButtonStyle.primary,
@@ -129,9 +136,11 @@ class PaginationView(View):
     async def goto_last(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        self.current_page = 5
-        await self.update_message()
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            self.current_page = 5
+            await self.update_message()
 
     @discord.ui.button(emoji="🗑️",
                         style=discord.ButtonStyle.danger,
@@ -139,27 +148,35 @@ class PaginationView(View):
     async def delete(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        await self.delete_json_data()
-        await self.update_message()
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            await self.delete_json_data()
+            await self.update_message()
 
     @discord.ui.button(emoji="✏️",
                         style=discord.ButtonStyle.secondary,
                         label="Edit")
     async def edit(self, interaction: discord.Interaction, button: Button):
-        modal = EditModal(title=f"Image {self.current_page} Vibe Transfer Edit", page=self.current_page, update_message=self.update_message)
+        await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        await interaction.response.send_modal(modal)
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            modal = EditModal(title=f"Image {self.current_page} Vibe Transfer Edit", page=self.current_page, update_message=self.update_message)
+            await interaction.response.send_modal(modal)
 
     @discord.ui.button(emoji="🆕",
                         style=discord.ButtonStyle.primary,
                         label="New")
     async def new(self, interaction: discord.Interaction, button: Button):
-        modal = AddModal(title=f"Image {len(await self.get_json_data()) + 1} Vibe Transfer Add", update_message=self.update_message) 
+        await interaction.response.defer()
         if not await self.check_author(interaction):
-            interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
-        await interaction.response.send_modal(modal)
+            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            modal = AddModal(title=f"Image {len(await self.get_json_data()) + 1} Vibe Transfer Add", update_message=self.update_message) 
+            await interaction.response.send_modal(modal)
 
     async def on_timeout(self):
         for child in self.children:
