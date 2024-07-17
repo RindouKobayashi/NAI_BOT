@@ -158,9 +158,8 @@ class PaginationView(View):
                         style=discord.ButtonStyle.secondary,
                         label="Edit")
     async def edit(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.defer()
         if not await self.check_author(interaction):
-            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            await interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
             return
         else:
             modal = EditModal(title=f"Image {self.current_page} Vibe Transfer Edit", page=self.current_page, update_message=self.update_message)
@@ -170,9 +169,8 @@ class PaginationView(View):
                         style=discord.ButtonStyle.primary,
                         label="New")
     async def new(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.defer()
         if not await self.check_author(interaction):
-            await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
+            await interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
             return
         else:
             modal = AddModal(title=f"Image {len(await self.get_json_data()) + 1} Vibe Transfer Add", update_message=self.update_message) 
