@@ -310,8 +310,8 @@ class NAI(commands.Cog):
                     
             # Check all attachments are valid images
             for attachment in images:
-                if attachment is not None and not attachment.filename.lower().endswith((".png", ".jpg", ".jpeg")):
-                    raise ValueError("Only PNG, JPG, and JPEG images are supported.")
+                if attachment is not None and not attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                    raise ValueError("Only PNG, JPG, JPEG and WebP images are supported.")
 
             # Create a json file named their user ID storing in database
             user_id = str(interaction.user.id)
