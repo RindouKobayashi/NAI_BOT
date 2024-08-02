@@ -217,7 +217,7 @@ class NAI(commands.Cog):
             prefix += ', '
         
         valid_choices = [
-            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}")
+            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}"[:100])
             for item in results
             if len(item) > 0  # Ensure item is not empty
         ]
@@ -247,7 +247,7 @@ class NAI(commands.Cog):
             prefix += ', '
         
         valid_choices = [
-            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}")
+            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}"[:100])
             for item in results
             if len(item) > 0  # Ensure item is not empty
         ]
