@@ -61,7 +61,7 @@ class NAIQueue:
 
     async def update_queue_positions(self):
         for i, item in enumerate(self.queue_list, start=1):
-            await item.message.edit(content=f"Your request is in queue. Current position: `{i}`")
+            await item.message.edit(content=f"<a:neurowait:1269356713451065466> Your request is in queue. Current position: `{i}` <a:neurowait:1269356713451065466>")
 
     async def process_queue(self):
         self.session = aiohttp.ClientSession()
