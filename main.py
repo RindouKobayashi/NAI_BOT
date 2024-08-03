@@ -10,6 +10,7 @@ import core.queuehandler as queuehandler
 # Discord Bot Permission
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 def run():
@@ -17,6 +18,9 @@ def run():
     @bot.event
     async def on_ready():
         logger.info(f"User: {bot.user} (ID: {bot.user.id})")
+        
+        # Start queuehandler
+        await queuehandler.start_queue(bot)
 
         # load cogs from cog 
         for cof_file in settings.COGS_DIR.glob("*cog.py"):
@@ -26,8 +30,7 @@ def run():
         # Change presence 
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
 
-        # Start queuehandler
-        await queuehandler.start_queue()
+        
 
 
 

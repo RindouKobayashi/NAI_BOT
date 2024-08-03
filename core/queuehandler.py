@@ -3,12 +3,12 @@ import aiohttp
 import io
 import zipfile
 from discord.ext import commands
-from discord import Interaction, File, Message, Activity, ActivityType
+from discord import Interaction, File, Message, Activity, ActivityType, AllowedMentions
 from settings import logger, NAI_API_TOKEN
 from collections import namedtuple
 from pathlib import Path
 from datetime import datetime
-from main import bot
+#from main import bot
 import base64
 import json
 import settings
@@ -32,7 +32,7 @@ class NovelAIAPI:
             return await response.read()
 
 class NAIQueue:
-    def __init__(self):
+    def __init__(self, bot: commands.Bot):
         self.queue = asyncio.Queue()
         self.session = None
         self.output_dir = Path("nai_output")
@@ -175,11 +175,28 @@ class NAIQueue:
 
             # Send the image to Discord
             files = []
-            file = File(f"{self.output_dir}/{file_path}")
+            file_path = f"{self.output_dir}/{file_path}"
+            file = File(file_path)
             files.append(file)
             await message.edit(
                 content=reply_content,
                 attachments=files
+            )
+
+            # Database channel
+            database_channel = self.bot.get_channel(settings.DATABASE_CHANNEL_ID)
+
+            # Reopen the file for forwarding
+            file = File(file_path)
+            files = [file]
+
+            # Additional info for reply_content (channel of the interaction)
+            interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+            reply_content += f"\nRequested on: {interaction_channel_link}"
+            await database_channel.send(
+                content=reply_content,
+                files=files,
+                allowed_mentions=AllowedMentions.none()
             )
 
             # Check if channel posted on is 1157817614245052446 then add reaction
@@ -203,10 +220,12 @@ class NAIQueue:
         if self.session:
             await self.session.close()
 
-nai_queue = NAIQueue()
+nai_queue = None
 
 # Function to be called when starting your bot
-async def start_queue():
+async def start_queue(bot):
+    global nai_queue
+    nai_queue = NAIQueue(bot)
     await nai_queue.start()
 
 # Function to be called when stopping your bot
