@@ -4,3 +4,4 @@ logs/
 __pycache__
 nai_output/
 database/user_vibe_transfer/
+.vscode
