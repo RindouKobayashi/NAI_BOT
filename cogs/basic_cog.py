@@ -150,7 +150,26 @@ class basic(commands.Cog):
         # Delete message
         await message.delete()
 
+    @app_commands.command(name="whois", description="Get information about a user")
+    async def whois(self, interaction: discord.Interaction, user: discord.User = None):
+        """Get information about a user"""
+        logger.info(f"COMMAND 'WHOIS' USED BY: {interaction.user} ({interaction.user.id})")
+        if user is None:
+            user = interaction.user
         
+        # Create embed to display information
+        embed = discord.Embed(
+            title=f"Information about {user.name}",
+            color=discord.Color.blurple()
+        )
+        embed.add_field(name="ID", value=f"`{user.id}`", inline=False)
+        embed.add_field(name="Created Account On: ", value=f"`{user.created_at.strftime('%Y-%m-%d %H:%M:%S')}`", inline=False)
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.display_avatar.url)
+
+        await interaction.response.send_message(embed=embed)
+        
+
 
     
 
