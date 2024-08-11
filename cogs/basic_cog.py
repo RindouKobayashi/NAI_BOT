@@ -1,6 +1,7 @@
 import discord
 import settings
 import asyncio
+import aiohttp
 from settings import logger, AUTOCOMPLETE_DATA
 from discord import app_commands
 from discord.ext import commands
@@ -168,6 +169,29 @@ class basic(commands.Cog):
         embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.display_avatar.url)
 
         await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="installed_users", description="List all installed users")
+    async def installed_users(self, interaction: discord.Interaction):
+        """List all installed users"""
+        if interaction.user.id != 125331697867816961:
+            await interaction.response.send_message("Only the bot owner can use this command.", ephemeral=True)
+            return
+        logger.info(f"COMMAND 'INSTALLED_USERS' USED BY: {interaction.user} ({interaction.user.id})")
+        url = "https://discord.com/api/v10/applications/@me"
+
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "Authorization": f"Bot {settings.DISCORD_API_TOKEN}"
+            }
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    install_users = data.get("approximate_user_install_count")
+                    await interaction.response.send_message(f"Installed users: {install_users}")
+                else:
+                    await interaction.response.send_message(f"Failed to get installed users. Status code: {response.status}", ephemeral=True)
+
+        
         
 
 
