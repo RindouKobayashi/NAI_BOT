@@ -8,13 +8,11 @@ from settings import logger, NAI_API_TOKEN
 from collections import namedtuple
 from pathlib import Path
 from datetime import datetime
-#from main import bot
 import base64
 import json
 import settings
 from asyncio import CancelledError
 
-# Import utility functions (image_to_base64)
 from core.nai_utils import image_to_base64
 
 # Define a named tuple for queue items
@@ -22,12 +20,21 @@ QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message', 'positi
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
+    OTHER_URL = "https://api.novelai.net"
 
     @staticmethod
     async def generate_image(session, access_token, prompt, model, action, parameters):
         data = {"input": prompt, "model": model, "action": action, "parameters": parameters}
         headers = {"Authorization": f"Bearer {access_token}"}
         async with session.post(f"{NovelAIAPI.BASE_URL}/ai/generate-image", json=data, headers=headers) as response:
+            response.raise_for_status()
+            return await response.read()
+        
+    @staticmethod
+    async def upscale(session, access_token, image_base64: str, width: int, height: int, scale: int):
+        data = {"image": image_base64, "width": width, "height": height, "scale": scale}
+        headers = {"Authorization": f"Bearer {access_token}"}
+        async with session.post(f"{NovelAIAPI.OTHER_URL}/ai/upscale", json=data, headers=headers) as response:
             response.raise_for_status()
             return await response.read()
 
@@ -159,6 +166,20 @@ class NAIQueue:
             # Process the response
             zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
             image_bytes = zipped.read(zipped.infolist()[0])
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+            # Check if upscale is enabled
+            if params['upscale']:
+                image_bytes = await NovelAIAPI.upscale(
+                    self.session, 
+                    NAI_API_TOKEN, 
+                    image_base64, 
+                    params['width'], 
+                    params['height'],
+                    4
+                    )
+                zipped = zipfile.ZipFile(io.BytesIO(image_bytes))
+                image_bytes = zipped.read(zipped.infolist()[0])
 
             # Save the image
             file_path = f"nai_generated_{interaction.user.id}.png"
@@ -183,21 +204,23 @@ class NAIQueue:
                 attachments=files
             )
 
-            # Database channel
-            database_channel = self.bot.get_channel(settings.DATABASE_CHANNEL_ID)
+            # Forward the image to the database
+            if settings.TO_DATABASE:
+                # Database channel
+                database_channel = self.bot.get_channel(settings.DATABASE_CHANNEL_ID)
 
-            # Reopen the file for forwarding
-            file = File(file_path)
-            files = [file]
+                # Reopen the file for forwarding
+                file = File(file_path)
+                files = [file]
 
-            # Additional info for reply_content (channel of the interaction)
-            interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
-            reply_content += f"\nRequested on: {interaction_channel_link}"
-            await database_channel.send(
-                content=reply_content,
-                files=files,
-                allowed_mentions=AllowedMentions.none()
-            )
+                # Additional info for reply_content (channel of the interaction)
+                interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+                reply_content += f"\nRequested on: {interaction_channel_link}"
+                await database_channel.send(
+                    content=reply_content,
+                    files=files,
+                    allowed_mentions=AllowedMentions.none()
+                )
 
             # Check if channel posted on is 1157817614245052446 then add reaction
             if interaction.channel.id == 1157817614245052446:

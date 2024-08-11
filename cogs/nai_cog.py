@@ -76,6 +76,7 @@ class NAI(commands.Cog):
         quality_toggle="Tags to increase qualityh will be prepended to the prompt (default: True)",
         undesired_content_presets="Undesired content presets (default: Heavy)",
         prompt_conversion_toggle="Convert Auto1111 way of prompt to NovelAI way of prompt (default: False)",
+        upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
         vibe_transfer_switch="Vibe transfer switch (default: False)",
     )
     async def nai(self, interaction: discord.Interaction, 
@@ -92,6 +93,7 @@ class NAI(commands.Cog):
                   quality_toggle: bool = True,
                   undesired_content_presets: app_commands.Choice[str] = "heavy",
                   prompt_conversion_toggle: bool = False,
+                  upscale: bool = False,
                   vibe_transfer_switch: bool = False,
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
@@ -115,6 +117,7 @@ class NAI(commands.Cog):
                 "quality_toggle": quality_toggle,
                 "undesired_content_presets": undesired_content_presets,
                 "prompt_conversion_toggle": prompt_conversion_toggle,
+                "upscale": upscale,
                 "vibe_transfer_switch": vibe_transfer_switch
             }
 
@@ -134,6 +137,7 @@ class NAI(commands.Cog):
                 "seed": checking_params["seed"],
                 "model": checking_params["model"],
                 "vibe_transfer_switch": checking_params["vibe_transfer_switch"],
+                "upscale": checking_params["upscale"],
             }
             
             # Add the request to the queue
@@ -145,8 +149,8 @@ class NAI(commands.Cog):
                 return
 
         except Exception as e:
-            logger.error(f"Error in NAI command: {str(e)}")
-            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+            #logger.error(f"Error in NAI command: {str(e)}")
+            #await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
             pass
 
     @nai.autocomplete('positive')
@@ -320,6 +324,12 @@ class NAI(commands.Cog):
             pixel_limit = 1024*1024 if checking_params["model"] in ("nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3") else 640*640
             if checking_params["width"] * checking_params["height"] > pixel_limit:
                 raise ValueError(f"`Image resolution ({checking_params['width']}x{checking_params['height']}) exceeds the pixel limit ({pixel_limit}px).`")
+
+            # Check upscale
+            if checking_params["upscale"] == True:
+                # Check if width x height <= 640 x 640
+                if checking_params["width"] * checking_params["height"] > 640 * 640:
+                    raise ValueError(f"`Image resolution ({checking_params['width']}x{checking_params['height']}) exceeds the pixel limit (640x640) for upscaling.`")
             
             # Check steps limit
             if checking_params["steps"] > 28:
@@ -389,7 +399,7 @@ class NAI(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in check_params: {e}")
-            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+            await interaction.edit_original_response(content=f"{str(e)}")
             
 
 async def setup(bot: commands.Bot):
