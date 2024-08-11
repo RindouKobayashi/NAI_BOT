@@ -55,6 +55,11 @@ class NAI(commands.Cog):
             app_commands.Choice(name="Light", value="light"),
             app_commands.Choice(name="Human_Focus", value="human_focus"),
             app_commands.Choice(name="None", value="none"),
+        ],
+        smea=[
+            app_commands.Choice(name="SMEA", value="SMEA"),
+            app_commands.Choice(name="SMEA+DYN", value="SMEA+DYN"),
+            app_commands.Choice(name="None", value="None"),
         ]
     )
     @app_commands.describe(
@@ -65,6 +70,7 @@ class NAI(commands.Cog):
         steps="Number of steps (default: 28)",
         cfg="CFG scale (default: 5.0)",
         sampler="Sampling method (default: k_euler)",
+        smea="SMEA and SMEA+DYN versions of samplers perform better at high res (default: None)",
         seed="Seed for generation (default: 0, random)",
         model="Model to use (default: nai-diffusion-3)",
         quality_toggle="Tags to increase qualityh will be prepended to the prompt (default: True)",
@@ -80,6 +86,7 @@ class NAI(commands.Cog):
                   steps: int = 28, 
                   cfg: float = 5.0, 
                   sampler: app_commands.Choice[str] = "k_euler", 
+                  smea: app_commands.Choice[str] = "None",
                   seed: int = 0,
                   model: app_commands.Choice[str] = "nai-diffusion-3",
                   quality_toggle: bool = True,
@@ -90,84 +97,11 @@ class NAI(commands.Cog):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
         await interaction.response.defer()
 
-        # Define min, max, step values
-        min_cfg, max_cfg, cfg_step = 0.0, 10.0, 0.1
-
         try:
 
             await interaction.followup.send("Checking parameters...")
 
-            # Check if command used in server 1024739383124963429
-            if interaction.guild.id == settings.SERVER_ID:
-                # Check if command used in channel 1261084844230705182
-                if interaction.channel.id != settings.CHANNEL_ID:
-                    raise ValueError(f"`Command can only be used in `<#{settings.CHANNEL_ID}>")
-
-            # Process model
-            if model != "nai-diffusion-3":
-                model = model.value
-
-            # Check pixel limit
-            pixel_limit = 1024*1024 if model in ("nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3") else 640*640
-            if width*height > pixel_limit:
-                raise ValueError(f"`Image resolution ({width}x{height}) exceeds the pixel limit ({pixel_limit}px).`")
-            
-            # Check steps limit
-            if steps > 28:
-                raise ValueError("`Steps must be less than or equal to 28.`")
-            
-            # Check seed
-            if seed <= 0:
-                seed = random.randint(0, 9999999999)
-
-            # Enforce cfg constraints
-            cfg = max(min_cfg, min(max_cfg, round(cfg / cfg_step) * cfg_step))
-
-            width, height = calculate_resolution(width*height, (width, height))
-
-
-            # Process sampler
-            if sampler != "k_euler":
-                sampler = sampler.value
-            #logger.info(f"Sampler: {sampler}")
-
-            # Process prompt and negative prompt with function prompt_to_nai if prompt_conversation_toggle is True
-            if prompt_conversion_toggle:
-                positive = prompt_to_nai(positive)
-                if negative is not None:
-                    negative = prompt_to_nai(negative)
-
-            # Process prompt with tags
-            if quality_toggle:
-                positive = f"{positive}, best quality, amazing quality, very aesthetic, absurdres"
-
-            # Process negative prompt with tags
-            if undesired_content_presets == "heavy":
-                undesired_content_presets = app_commands.Choice(name="Heavy", value="heavy")
-            if undesired_content_presets != None:
-                # Check if negative prompt is empty
-                if negative is None:
-                    negative = ""
-                if undesired_content_presets.value == "heavy":
-                    # Check model to see what tags to add
-                    if model == "nai-diffusion-3":
-                        negative = "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]," + negative
-                    elif model == "nai-diffusion-2":
-                        negative = "lowres, bad, text, error, missing, extra, fewer, cropped, jpeg artifacts, worst quality, bad quality, watermark, displeasing, unfinished, chromatic aberration, scan, scan artifacts," + negative
-                    elif model == "nai-diffusion-furry" or model == "nai-diffusion-furry-3":
-                        negative = "{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast," + negative
-                elif undesired_content_presets.value == "light":
-                    # Check model to see what tags to add
-                    if model == "nai-diffusion-3" or model == "nai-diffusion-2":
-                        negative = "lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing," + negative
-                    elif model == "nai-diffusion-furry" or model == "nai-diffusion-furry-3":
-                        negative = "{worst quality}, guide lines, unfinished, bad, url, tall image, widescreen, compression artifacts, unknown text," + negative
-                elif undesired_content_presets.value == "human_focus":
-                    # Check model to see what tags to add
-                    if model == "nai-diffusion-3":
-                        negative = "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes," + negative
-            
-            params = {
+            checking_params = {
                 "positive": positive,
                 "negative": negative,
                 "width": width,
@@ -175,23 +109,45 @@ class NAI(commands.Cog):
                 "steps": steps,
                 "cfg": cfg,
                 "sampler": sampler,
+                "smea": smea,
                 "seed": seed,
                 "model": model,
-                "vibe_transfer_switch": vibe_transfer_switch,
+                "quality_toggle": quality_toggle,
+                "undesired_content_presets": undesired_content_presets,
+                "prompt_conversion_toggle": prompt_conversion_toggle,
+                "vibe_transfer_switch": vibe_transfer_switch
             }
 
+            checking_params = await self.check_params(checking_params, interaction)
+
+            # Unpack the parameters       
+            params = {
+                "positive": checking_params["positive"],
+                "negative": checking_params["negative"],
+                "width": checking_params["width"],
+                "height": checking_params["height"],
+                "steps": checking_params["steps"],
+                "cfg": checking_params["cfg"],
+                "sampler": checking_params["sampler"],
+                "sm": checking_params["sm"],
+                "sm_dyn": checking_params["sm_dyn"],
+                "seed": checking_params["seed"],
+                "model": checking_params["model"],
+                "vibe_transfer_switch": checking_params["vibe_transfer_switch"],
+            }
             
             # Add the request to the queue
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
-            success = await nai_queue.add_to_queue(interaction, params, message)
+            success = await nai_queue.add_to_queue(interaction.user, params, message)
 
             if not success:
                 # The message has already been edited in the add_to_queue function
                 return
 
         except Exception as e:
-            logger.error(f"Error in NAI command: {str(e)}")
-            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+            #logger.error(f"Error in NAI command: {str(e)}")
+            #await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+            pass
 
     @nai.autocomplete('positive')
     async def nai_positive_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -345,7 +301,96 @@ class NAI(commands.Cog):
         await interaction.response.defer(ephemeral=ephemeral)
         pagination_view = PaginationView(interaction=interaction)
         await pagination_view.send()
+
+    async def check_params(self, checking_params: dict, interaction: discord.Interaction):
         
+        try:
+
+            # Check if command used in server 1024739383124963429
+            if interaction.guild_id == settings.SERVER_ID:
+                # Check if command used in channel 1261084844230705182
+                if interaction.channel_id != settings.CHANNEL_ID:
+                    raise ValueError(f"`Command can only be used in `<#{settings.CHANNEL_ID}>")
+                
+            # Process model
+            if checking_params["model"] != "nai-diffusion-3":
+                checking_params["model"] = checking_params["model"].value
+
+            # Check pixel limit
+            pixel_limit = 1024*1024 if checking_params["model"] in ("nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3") else 640*640
+            if checking_params["width"] * checking_params["height"] > pixel_limit:
+                raise ValueError(f"`Image resolution ({checking_params['width']}x{checking_params['height']}) exceeds the pixel limit ({pixel_limit}px).`")
+            
+            # Check steps limit
+            if checking_params["steps"] > 28:
+                raise ValueError(f"`Steps ({checking_params['steps']}) exceeds the steps limit (28).`")
+            
+            # Check seed
+            if checking_params["seed"] <= 0:
+                checking_params["seed"] = random.randint(0, 9999999999)
+
+            # Enforce cfg constraint
+            min_cfg, max_cfg, cfg_step = 0.0, 10.0, 0.1
+            checking_params["cfg"] = max(min_cfg, min(max_cfg, round(checking_params["cfg"] / cfg_step) * cfg_step))
+            
+            checking_params["width"], checking_params["height"] = calculate_resolution(checking_params["width"]*checking_params["height"], (checking_params["width"], checking_params["height"]))
+
+            # Process sampler and SMEA
+            if checking_params["sampler"] != "k_euler":
+                checking_params["sampler"] = checking_params["sampler"].value
+            if checking_params["smea"] != "None":
+                checking_params["smea"] = checking_params["smea"].value
+                if checking_params["smea"] == "SMEA":
+                    checking_params["sm"] = True
+                    checking_params["sm_dyn"] = False
+                elif checking_params["smea"] == "SMEA+DYN":
+                    checking_params["sm"] = True
+                    checking_params["sm_dyn"] = True
+                else:
+                    checking_params["sm"] = False
+                    checking_params["sm_dyn"] = False
+            elif checking_params["smea"] == "None":
+                checking_params["sm"] = False
+                checking_params["sm_dyn"] = False
+
+            # Process prompt and negative prompt with function prompt_to_nai if prompt_conversion_toggle is True
+            if checking_params["prompt_conversion_toggle"]:
+                checking_params["prompt"] = prompt_to_nai(checking_params["prompt"])
+                if checking_params["negative"] is not None:
+                    checking_params["negative"] = prompt_to_nai(checking_params["negative"])
+
+            # Process negative prompt with tags
+            if checking_params["undesired_content_presets"] == "heavy":
+                checking_params["undesired_content_presets"] = app_commands.Choice(name="heavy", value="heavy")
+            if checking_params["undesired_content_presets"] != None:
+                # Check if negative prompt is empty
+                if checking_params["negative"] is None:
+                    checking_params["negative"] = ""
+                if checking_params["undesired_content_presets"].value == "heavy":
+                    # Check model to see what tags to add
+                    if checking_params["model"] == "nai-diffusion-3":
+                        checking_params["negative"] +=  "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]," + checking_params["negative"]
+                    elif checking_params["model"] == "nai-diffusion-2":
+                        checking_params["negative"] = "lowres, bad, text, error, missing, extra, fewer, cropped, jpeg artifacts, worst quality, bad quality, watermark, displeasing, unfinished, chromatic aberration, scan, scan artifacts," + checking_params["negative"]
+                    elif checking_params["model"] == "nai-diffusion-furry" or checking_params["model"] == "nai-diffusion-furry-3":
+                        checking_params["negative"] = "{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast," + checking_params["negative"]
+                elif checking_params["undesired_content_presets"].value == "light":
+                    # Check model to see what tags to add
+                    if checking_params["model"] == "nai-diffusion-3" or checking_params["model"] == "nai-diffusion-2":
+                        checking_params["negative"] = "lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing," + checking_params["negative"]
+                    elif checking_params["model"] == "nai-diffusion-furry" or checking_params["model"] == "nai-diffusion-furry-3":
+                        checking_params["negative"] = "{worst quality}, guide lines, unfinished, bad, url, tall image, widescreen, compression artifacts, unknown text," + checking_params["negative"]
+                elif checking_params["undesired_content_presets"].value == "human_focus":
+                    # Check model to see what tags to add
+                    if checking_params["model"] == "nai-diffusion-3":
+                        checking_params['negative'] = "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes," + checking_params['negative']
+
+            return checking_params
+
+        except Exception as e:
+            logger.error(f"Error in check_params: {e}")
+            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+            
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))
