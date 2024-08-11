@@ -138,15 +138,15 @@ class NAI(commands.Cog):
             
             # Add the request to the queue
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
-            success = await nai_queue.add_to_queue(interaction.user, params, message)
+            success = await nai_queue.add_to_queue(interaction, params, message)
 
             if not success:
                 # The message has already been edited in the add_to_queue function
                 return
 
         except Exception as e:
-            #logger.error(f"Error in NAI command: {str(e)}")
-            #await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
+            logger.error(f"Error in NAI command: {str(e)}")
+            await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
             pass
 
     @nai.autocomplete('positive')
