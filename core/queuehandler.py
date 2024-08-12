@@ -228,7 +228,7 @@ class NAIQueue:
 
             # Check if channel posted on is 1261084844230705182 then add reaction
             if interaction.channel.id == settings.CHANNEL_ID:
-                logger.info(f"Adding reaction to {message.id}")
+                #logger.info(f"Adding reaction to {message.id}")
                 await message.add_reaction("🗑️")
 
         except Exception as e:
