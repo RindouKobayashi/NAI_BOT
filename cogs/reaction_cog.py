@@ -16,37 +16,36 @@ class REACTION(commands.Cog):
             return
         
         # Check if reaction is 🗑️
-        if payload.emoji.name != "🗑️":
-            return
-        
-        # Check if it's in the correct channel (replace with your actual channel ID)
-        if payload.channel_id != settings.CHANNEL_ID:
-            return
-        
-        # Get payload.message
-        message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-        
-        # Check number of reactions
-        for reaction in message.reactions:
-            if reaction.emoji == "🗑️":
-                # Check if reaction count is above 2
-                if reaction.count > 2:
-                    await message.delete()
-                    break
-        
-        # Check if there's at least one mention
-        if not message.mentions:
-            return
-        
-        # Original command author
-        original_user = message.mentions[0]
+        if payload.emoji.name == "🗑️":
+            
+            # Check if it's in the correct channel (replace with your actual channel ID)
+            if payload.channel_id != settings.IMAGE_GEN_BOT_CHANNEL:
+                return
+            
+            # Get payload.message
+            message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+            
+            # Check number of reactions
+            for reaction in message.reactions:
+                if reaction.emoji == "🗑️":
+                    # Check if reaction count is above 2
+                    if reaction.count > 2:
+                        await message.delete()
+                        break
+            
+            # Check if there's at least one mention
+            if not message.mentions:
+                return
+            
+            # Original command author
+            original_user = message.mentions[0]
 
-        # Check if it's the original command author
-        if original_user.id != payload.user_id:
-            return
-        
-        # Delete message
-        await message.delete()
+            # Check if it's the original command author
+            if original_user.id != payload.user_id:
+                return
+            
+            # Delete message
+            await message.delete()
 
 
 
