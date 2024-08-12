@@ -73,6 +73,8 @@ class BASIC(commands.Cog):
         logger.info(f"COMMAND 'How_to_vibe_transfer' USED BY: {interaction.user} ({interaction.user.id})")
         await interaction.response.send_message(f"For vibe transfer: please use vibe_transfer command. You are allowed 5 images with their values. All of these will be stored as base64 strings and corresponding values in json. When using nai command, you can use vibe_transfer_switch to true to auto retrieve your own vibe transfer data.", ephemeral=True)
 
+
+    """
     # A test command that check against AUTOCOMPLETE_DATA
     @app_commands.command(name="search", description="Search with multiple independent terms")
     async def search(self, interaction: discord.Interaction, query: str):
@@ -91,7 +93,7 @@ class BASIC(commands.Cog):
                 item for item in AUTOCOMPLETE_DATA
                 if item.lower().startswith(current_term)
             ]
-
+    
             return results[:25]  # Limit to 25 results as per Discord's limit
 
         results = await asyncio.to_thread(search_current_term, current)
@@ -108,6 +110,7 @@ class BASIC(commands.Cog):
         ]
         
         return valid_choices
+    """
 
     @app_commands.command(name="whois", description="Get information about a user")
     async def whois(self, interaction: discord.Interaction, user: discord.User = None):
