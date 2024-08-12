@@ -6,7 +6,7 @@ from settings import logger, AUTOCOMPLETE_DATA
 from discord import app_commands
 from discord.ext import commands
 
-class basic(commands.Cog):
+class BASIC(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         
@@ -109,48 +109,6 @@ class basic(commands.Cog):
         
         return valid_choices
 
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        """Check if reaction is 🗑️, if it's in certain channel and message by bot, if yes, delete it"""
-
-        # Check if bot is reacting
-        if payload.user_id == self.bot.user.id:
-            return
-        
-        # Check if reaction is 🗑️
-        if payload.emoji.name != "🗑️":
-            return
-        
-        # Check if it's in the correct channel (replace with your actual channel ID)
-        if payload.channel_id != settings.CHANNEL_ID:
-            return
-        
-        # Get payload.message
-        message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-        
-        # Check number of reactions
-        for reaction in message.reactions:
-            if reaction.emoji == "🗑️":
-                # Check if reaction count is above 2
-                if reaction.count > 2:
-                    await message.delete()
-                    break
-        
-        # Check if there's at least one mention
-        if not message.mentions:
-            return
-        
-        # Original command author
-        original_user = message.mentions[0]
-
-        # Check if it's the original command author
-        if original_user.id != payload.user_id:
-            return
-        
-        # Delete message
-        await message.delete()
-
     @app_commands.command(name="whois", description="Get information about a user")
     async def whois(self, interaction: discord.Interaction, user: discord.User = None):
         """Get information about a user"""
@@ -198,5 +156,5 @@ class basic(commands.Cog):
     
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(basic(bot))
-    logger.info("COG LOADED: basic - COG FILE: basic_cog.py")
+    await bot.add_cog(BASIC(bot))
+    logger.info("COG LOADED: BASIC - COG FILE: basic_cog.py")
