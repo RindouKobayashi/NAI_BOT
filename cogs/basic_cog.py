@@ -45,26 +45,24 @@ class BASIC(commands.Cog):
 
 
     @app_commands.command(name="shutdown", description="Shutdown the bot")
-    async def shutdown(self, interaction: discord.Interaction, time: int = 30):
+    async def shutdown(self, interaction: discord.Interaction, time: int = 30, reason:str = None):
         """Shutdown the bot"""
         logger.info(f"COMMAND 'SHUTDOWN' USED BY: {interaction.user} ({interaction.user.id})")
         # Check if user is owner of bot
         if interaction.user.id != 125331697867816961:
             await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
-        await interaction.response.send_message(f"Shutting down in ``{time}`` seconds...")
-        for second in range(time, -10, -1):
-            await interaction.edit_original_response(content=f"Shutting down in ``{second}`` seconds...")
-            await asyncio.sleep(1)
-            if second == 0:
-                await interaction.edit_original_response(content="Shutting down...")
-                break
-        channel = self.bot.get_channel(interaction.channel.id)
-        await interaction.delete_original_response()
-        #message = await interaction.edit_original_response(content="Bye bye world!")
-        #await message.add_reaction("<:agony:1161203375598223370>")
-        message = await channel.send(f"Bye bye world!")
-        message = await message.add_reaction("<:agony:1161203375598223370>")
+        await interaction.response.send_message("Shutting down...", ephemeral=True, delete_after=time)
+        for guild in self.bot.guilds:
+            member = guild.get_member(self.bot.user.id)
+            if reason:
+                await member.edit(nick=f"{reason}")
+            else:
+                await member.edit(nick=f"Shutting down in {time} seconds...")
+        await asyncio.sleep(time)
+        for guild in self.bot.guilds:
+            member = guild.get_member(self.bot.user.id)
+            await member.edit(nick=None)
         await self.bot.close()
 
     @app_commands.command(name="how_to_vibe_transfer", description="How to vibe transfer")
