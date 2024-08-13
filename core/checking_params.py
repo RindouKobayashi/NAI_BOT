@@ -4,9 +4,10 @@ from settings import logger
 import discord
 from discord import app_commands
 from core.nai_utils import calculate_resolution, prompt_to_nai
+from core.dict_annotation import Checking_Params
 
 
-async def check_params(checking_params: dict, interaction: discord.Interaction):
+async def check_params(checking_params: Checking_Params, interaction: discord.Interaction):
         
         try:
 
@@ -65,7 +66,7 @@ async def check_params(checking_params: dict, interaction: discord.Interaction):
 
             # Process prompt and negative prompt with function prompt_to_nai if prompt_conversion_toggle is True
             if checking_params["prompt_conversion_toggle"]:
-                checking_params["prompt"] = prompt_to_nai(checking_params["prompt"])
+                checking_params["positive"] = prompt_to_nai(checking_params["positive"])
                 if checking_params["negative"] is not None:
                     checking_params["negative"] = prompt_to_nai(checking_params["negative"])
 
