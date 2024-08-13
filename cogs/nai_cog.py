@@ -16,6 +16,7 @@ import random
 import json
 from core.viewhandler import VibeTransferView
 from core.checking_params import check_params
+from core.bundle_data import BundleData
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
@@ -140,10 +141,21 @@ class NAI(commands.Cog):
                 "vibe_transfer_switch": checking_params["vibe_transfer_switch"],
                 "upscale": checking_params["upscale"],
             }
+
+            message = await interaction.edit_original_response(content="Adding your request to the queue...")
+
+            # Create a bundle_data that contains all the parameters
+            bundle_data: BundleData = {
+                "request_id": str(settings.uuid.uuid4()),
+                "interaction": interaction,
+                "message": message,
+                "params": params,
+                "checking_params": checking_params
+            }
             
             # Add the request to the queue
-            message = await interaction.edit_original_response(content="Adding your request to the queue...")
-            success = await nai_queue.add_to_queue(interaction, params, message, checking_params)
+            
+            success = await nai_queue.add_to_queue(bundle_data)
 
             if not success:
                 # The message has already been edited in the add_to_queue function

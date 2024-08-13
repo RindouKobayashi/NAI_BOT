@@ -4,6 +4,7 @@ import discord
 import logging
 import asyncio
 import csv
+import uuid
 
 from dotenv import load_dotenv
 from logging.config import dictConfig
