@@ -3,7 +3,7 @@ import aiohttp
 import io
 import zipfile
 from discord.ext import commands
-from discord import Interaction, File, Message, Activity, ActivityType, AllowedMentions
+from discord import Interaction, File, Message, Activity, ActivityType, AllowedMentions, CustomActivity
 from settings import logger, NAI_API_TOKEN
 from collections import namedtuple
 from pathlib import Path
@@ -71,7 +71,12 @@ class NAIQueue:
         for i, bundle_data in enumerate(self.queue_list, start=1):
             bundle_data: BundleData
             await bundle_data['message'].edit(content=f"<a:neurowait:1269356713451065466> Your request is in queue. Current position: `{i}` <a:neurowait:1269356713451065466>")
-
+        
+        # If queue is not empty, shows it in pressence
+        if self.queue_list:
+            await self.bot.change_presence(activity=CustomActivity(name=f"Queue: {len(self.queue_list)}"))
+        else:
+            await self.bot.change_presence(activity=Activity(type=ActivityType.watching, name="you"))
     async def process_queue(self):
         self.session = aiohttp.ClientSession()
         try:
