@@ -226,7 +226,7 @@ class NAIQueue:
             if interaction.channel.id == 1157817614245052446:
                 await message.add_reaction("🔎")
 
-            # Check if channel posted on is 1261084844230705182 then add reaction
+            # Check if channel posted on is IMAGE_GEN_BOT_CHANNEL then add reaction
             if interaction.channel.id == settings.IMAGE_GEN_BOT_CHANNEL:
                 #logger.info(f"Adding reaction to {message.id}")
                 await message.add_reaction("🗑️")
