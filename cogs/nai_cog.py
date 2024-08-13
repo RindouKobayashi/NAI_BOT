@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from settings import logger, AUTOCOMPLETE_DATA
+from settings import logger, AUTOCOMPLETE_DATA, uuid
 import base64
 import io
 import requests
@@ -14,13 +14,13 @@ import settings
 from core.queuehandler import nai_queue
 import random
 import json
+import uuid
 from core.viewhandler import VibeTransferView
 from core.checking_params import check_params
-from core.bundle_data import BundleData
+import core.dict_annotation as da
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
-
 
 
 class NAI(commands.Cog):
@@ -105,7 +105,7 @@ class NAI(commands.Cog):
 
             await interaction.followup.send("Checking parameters...")
 
-            checking_params = {
+            checking_params: da.Checking_Params = {
                 "positive": positive,
                 "negative": negative,
                 "width": width,
@@ -126,7 +126,7 @@ class NAI(commands.Cog):
             checking_params = await check_params(checking_params, interaction)
 
             # Unpack the parameters       
-            params = {
+            params: da.Params = {
                 "positive": checking_params["positive"],
                 "negative": checking_params["negative"],
                 "width": checking_params["width"],
@@ -145,8 +145,8 @@ class NAI(commands.Cog):
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
 
             # Create a bundle_data that contains all the parameters
-            bundle_data: BundleData = {
-                "request_id": str(settings.uuid.uuid4()),
+            bundle_data: da.BundleData = {
+                "request_id": str(uuid.uuid4()),
                 "interaction": interaction,
                 "message": message,
                 "params": params,

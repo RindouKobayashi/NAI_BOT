@@ -96,3 +96,6 @@ with open("danbooru.csv", newline="", encoding="utf-8") as csvfile:
         AUTOCOMPLETE_DATA.append(keyword)  # Store just the keyword
 
 #logger.info(f"AUTOCOMPLETE_DATA: {AUTOCOMPLETE_DATA}")
+
+class Globals:
+    remix_views = {}

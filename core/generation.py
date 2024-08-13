@@ -9,7 +9,8 @@ from pathlib import Path
 from datetime import datetime
 from discord import Interaction, Message, File, AllowedMentions
 from discord.ext import commands
-from core.bundle_data import BundleData
+import core.dict_annotation as da
+from core.viewhandler import RemixView
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
@@ -31,7 +32,7 @@ class NovelAIAPI:
             response.raise_for_status()
             return await response.read()
 
-async def process_txt2img(bot: commands.Bot, bundle_data: BundleData):
+async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
         
     try:
         async with aiohttp.ClientSession() as session:
@@ -127,6 +128,10 @@ async def process_txt2img(bot: commands.Bot, bundle_data: BundleData):
             file = File(file_path)
             files.append(file)
             await message.edit(content=reply_content, attachments=files)
+
+            # Prepare RemixView
+            settings.Globals.remix_views[request_id] = RemixView(bundle_data)
+            await settings.Globals.remix_views[request_id].send()
 
             # Forward the image to database if enabled
             if settings.TO_DATABASE:

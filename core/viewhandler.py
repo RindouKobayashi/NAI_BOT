@@ -1,11 +1,13 @@
 import discord
 from discord.ui import View, Button
-from settings import USER_VIBE_TRANSFER_DIR, logger, DATABASE_DIR
+from settings import USER_VIBE_TRANSFER_DIR, logger, DATABASE_DIR, uuid, Globals
 import base64
 import json
 import os
+import random
 from core.modalhandler import EditModal, AddModal
 from core.nai_utils import base64_to_image
+import core.dict_annotation as da
 
 class VibeTransferView(View):
     def __init__(self, interaction: discord.Interaction):
@@ -182,3 +184,41 @@ class VibeTransferView(View):
         embed, file = await self.create_embed()
         message = await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file], content=f"`Timed out, deleting in 10 seconds...`")
         await message.delete(delay=10)
+
+class RemixView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=20)
+        self.bundle_data = bundle_data
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    @discord.ui.button(emoji="♻️",
+                        style=discord.ButtonStyle.primary,
+                        label="reSeed")
+    async def reseed(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.defer()
+        button.custom_id = self.bundle_data["request_id"]
+        new_data: da.BundleData = self.bundle_data.copy()
+        new_data["checking_params"]["seed"] = random.randint(0, 9999999999)
+        new_data["params"]["seed"] = new_data["checking_params"]["seed"]
+        new_data["request_id"] = str(uuid.uuid4())
+        new_data["interaction"] = interaction
+        new_data["message"] = await interaction.followup.send("♻️ Seeding ♻️")
+        from core.queuehandler import nai_queue
+        await nai_queue.add_to_queue(new_data)
+
+    async def on_timeout(self):
+        self.stop()
+        Globals.remix_views.pop(self.bundle_data["request_id"])
+        message = self.bundle_data["message"]
+        try:
+            self.reseed.disabled = True
+            await message.edit(view=self)
+        except discord.NotFound:
+            # Message has already been deleted
+            pass
+        except discord.HTTPException as e:
+            logger.error(f"Failed to edit message on timeout: {e}")
+            pass

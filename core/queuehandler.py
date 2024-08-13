@@ -12,7 +12,7 @@ import base64
 import json
 import settings
 from asyncio import CancelledError
-from core.bundle_data import BundleData
+from core.dict_annotation import BundleData
 from core.generation import process_txt2img
 
 from core.nai_utils import image_to_base64
@@ -68,43 +68,48 @@ class NAIQueue:
         return True
 
     async def update_queue_positions(self):
-        for i, item in enumerate(self.queue_list, start=1):
-            await item.message.edit(content=f"<a:neurowait:1269356713451065466> Your request is in queue. Current position: `{i}` <a:neurowait:1269356713451065466>")
+        for i, bundle_data in enumerate(self.queue_list, start=1):
+            bundle_data: BundleData
+            await bundle_data['message'].edit(content=f"<a:neurowait:1269356713451065466> Your request is in queue. Current position: `{i}` <a:neurowait:1269356713451065466>")
 
     async def process_queue(self):
         self.session = aiohttp.ClientSession()
-        while True:
-            try:
-                # Wait for an item to be available in the queue
-                bundle_data: BundleData = await self.queue.get()
-                
-                if self.queue_list:
-                    self.queue_list.pop(0)
-                else:
-                    logger.warning("Queue list is empty but an item was received from the queue.")
+        try:
+            while True:
+                try:
+                    # Wait for an item to be available in the queue
+                    bundle_data: BundleData = await self.queue.get()
+                    
+                    if self.queue_list:
+                        self.queue_list.pop(0)
+                    else:
+                        logger.warning("Queue list is empty but an item was received from the queue.")
 
-                # Decrement the user's request count
-                user_id = bundle_data["interaction"].user.id
-                self.user_request_count[user_id] = max(0, self.user_request_count.get(user_id, 0) - 1)
+                    # Decrement the user's request count
+                    user_id = bundle_data["interaction"].user.id
+                    self.user_request_count[user_id] = max(0, self.user_request_count.get(user_id, 0) - 1)
 
-                await self.update_queue_positions()
-                await self._process_item(bundle_data)
-                self.queue.task_done()
-            except CancelledError:
-                logger.info("Queue processing was cancelled.")
-                break
-            except RuntimeError as e:
-                if "attached to a different loop" in str(e):
-                    #logger.warning(f"Encountered loop mismatch error: {e}. Continuing operation.")
-                    # Optionally, you could add a small delay here to prevent rapid logging
-                    # await asyncio.sleep(0.1)
-                    pass
-                else:
-                    logger.error(f"Unexpected RuntimeError in process_queue: {e}")
+                    await self.update_queue_positions()
+                    await self._process_item(bundle_data)
+                    self.queue.task_done()
+                except CancelledError:
+                    logger.info("Queue processing was cancelled.")
+                    break
+                except RuntimeError as e:
+                    if "attached to a different loop" in str(e):
+                        #logger.warning(f"Encountered loop mismatch error: {e}. Continuing operation.")
+                        # Optionally, you could add a small delay here to prevent rapid logging
+                        # await asyncio.sleep(0.1)
+                        pass
+                    else:
+                        logger.error(f"Unexpected RuntimeError in process_queue: {e}")
+                        await asyncio.sleep(1)
+                except Exception as e:
+                    logger.error(f"Error in process_queue: {str(e)}")
                     await asyncio.sleep(1)
-            except Exception as e:
-                logger.error(f"Error in process_queue: {str(e)}")
-                await asyncio.sleep(1)
+        finally:
+            if self.session and not self.session.closed:
+                await self.session.close()
 
 
     async def _process_item(self, bundle_data: BundleData):
@@ -117,11 +122,17 @@ class NAIQueue:
 
 
     async def start(self):
-        asyncio.create_task(self.process_queue())
+        self.queue_task = asyncio.create_task(self.process_queue())
 
     async def stop(self):
-        if self.session:
-            await self.session.close()
+        
+        # Cancel the queue processing task
+        if hasattr(self, 'queue_task'):
+            self.queue_task.cancel()
+            try:
+                await self.queue_task
+            except asyncio.CancelledError:
+                pass
 
 nai_queue = None
 
@@ -133,4 +144,7 @@ async def start_queue(bot):
 
 # Function to be called when stopping your bot
 async def stop_queue():
-    await nai_queue.stop()
+    global nai_queue
+    if nai_queue:
+        await nai_queue.stop()
+        nai_queue = None
