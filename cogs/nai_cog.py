@@ -310,11 +310,11 @@ class NAI(commands.Cog):
         
         try:
 
-            # Check if command used in server 1024739383124963429
-            if interaction.guild_id == settings.SERVER_ID:
-                # Check if command used in channel 1261084844230705182
-                if interaction.channel_id != settings.CHANNEL_ID:
-                    raise ValueError(f"`Command can only be used in `<#{settings.CHANNEL_ID}>")
+            # Check if command used in server ANIMEAI_SERVER
+            if interaction.guild_id == settings.ANIMEAI_SERVER:
+                # Check if command used in channel IMAGE_GEN_BOT_CHANNEL
+                if interaction.channel_id != settings.IMAGE_GEN_BOT_CHANNEL:
+                    raise ValueError(f"`Command can only be used in `<#{settings.IMAGE_GEN_BOT_CHANNEL}>")
                 
             # Process model
             if checking_params["model"] != "nai-diffusion-3":
