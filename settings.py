@@ -16,6 +16,7 @@ if branch == 'dev':
     TO_DATABASE = False
 else:
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
+    TO_DATABASE = True
 NAI_EMAIL = os.getenv("NAI_EMAIL")
 NAI_PASSWORD = os.getenv("NAI_PASSWORD")
 NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
