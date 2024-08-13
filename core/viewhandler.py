@@ -7,7 +7,7 @@ import os
 from core.modalhandler import EditModal, AddModal
 from core.nai_utils import base64_to_image
 
-class PaginationView(View):
+class VibeTransferView(View):
     def __init__(self, interaction: discord.Interaction):
         super().__init__(timeout=120)
         self.interaction = interaction

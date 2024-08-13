@@ -14,7 +14,7 @@ import settings
 from core.queuehandler import nai_queue
 import random
 import json
-from core.viewhandler import PaginationView
+from core.viewhandler import VibeTransferView
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
@@ -303,7 +303,7 @@ class NAI(commands.Cog):
     async def view_vibe_transfer(self, interaction: discord.Interaction, ephemeral: bool = True):
         logger.info(f"COMMAND 'VIEW_VIBE_TRANSFER' USED BY: {interaction.user} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=ephemeral)
-        pagination_view = PaginationView(interaction=interaction)
+        pagination_view = VibeTransferView(interaction=interaction)
         await pagination_view.send()
 
     async def check_params(self, checking_params: dict, interaction: discord.Interaction):
