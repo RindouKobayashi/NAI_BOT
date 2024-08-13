@@ -187,7 +187,7 @@ class VibeTransferView(View):
 
 class RemixView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=20)
+        super().__init__(timeout=120)
         self.bundle_data = bundle_data
 
     async def send(self):
