@@ -198,6 +198,7 @@ class RemixView(View):
                         style=discord.ButtonStyle.primary,
                         label="reSeed")
     async def reseed(self, interaction: discord.Interaction, button: Button):
+        logger.info(f"reSeed button pressed by {interaction.user.name} ({interaction.user.id})")
         await interaction.response.defer()
         button.custom_id = self.bundle_data["request_id"]
         new_data: da.BundleData = self.bundle_data.copy()
