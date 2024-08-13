@@ -10,7 +10,7 @@ from logging.config import dictConfig
 
 load_dotenv()
 
-DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
+DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
 NAI_EMAIL = os.getenv("NAI_EMAIL")
 NAI_PASSWORD = os.getenv("NAI_PASSWORD")
 NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
@@ -28,7 +28,7 @@ ANIMEAI_SERVER = 1024739383124963429
 
 DATABASE_CHANNEL_ID = 1268976168233599117
 
-TO_DATABASE = True
+TO_DATABASE = False
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,

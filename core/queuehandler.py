@@ -16,7 +16,7 @@ from asyncio import CancelledError
 from core.nai_utils import image_to_base64
 
 # Define a named tuple for queue items
-QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message', 'position'])
+QueueItem = namedtuple('QueueItem', ['interaction', 'params', 'message', 'position', 'checking_params'])
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
@@ -48,7 +48,7 @@ class NAIQueue:
         self.queue_list = []
         self.user_request_count = {}
 
-    async def add_to_queue(self, interaction: Interaction, params: dict, message: Message):
+    async def add_to_queue(self, interaction: Interaction, params: dict, message: Message, checking_params: dict):
         user_id = interaction.user.id
 
         # Check if the user has reached the limit
@@ -57,7 +57,7 @@ class NAIQueue:
             return False
 
         position = len(self.queue_list) + 1
-        item = QueueItem(interaction, params, message, position)
+        item = QueueItem(interaction, params, message, checking_params, position)
         self.queue_list.append(item)
         await self.queue.put(item)
 
@@ -107,9 +107,10 @@ class NAIQueue:
 
 
     async def _process_item(self, item: QueueItem):
-        interaction, params, message, _ = item
+        interaction, params, message, checking_params, _ = item
         interaction: Interaction
-        message : Message
+        message: Message
+        checking_params: dict
         try:
             # Prepare parameters for the API call
             nai_params = {
@@ -230,6 +231,8 @@ class NAIQueue:
             if interaction.channel.id == settings.IMAGE_GEN_BOT_CHANNEL:
                 #logger.info(f"Adding reaction to {message.id}")
                 await message.add_reaction("🗑️")
+
+            ###
 
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")

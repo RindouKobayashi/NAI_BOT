@@ -15,6 +15,7 @@ from core.queuehandler import nai_queue
 import random
 import json
 from core.viewhandler import VibeTransferView
+from core.checking_params import check_params
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
@@ -121,7 +122,7 @@ class NAI(commands.Cog):
                 "vibe_transfer_switch": vibe_transfer_switch
             }
 
-            checking_params = await self.check_params(checking_params, interaction)
+            checking_params = await check_params(checking_params, interaction)
 
             # Unpack the parameters       
             params = {
@@ -142,7 +143,7 @@ class NAI(commands.Cog):
             
             # Add the request to the queue
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
-            success = await nai_queue.add_to_queue(interaction, params, message)
+            success = await nai_queue.add_to_queue(interaction, params, message, checking_params)
 
             if not success:
                 # The message has already been edited in the add_to_queue function
@@ -306,7 +307,7 @@ class NAI(commands.Cog):
         pagination_view = VibeTransferView(interaction=interaction)
         await pagination_view.send()
 
-    async def check_params(self, checking_params: dict, interaction: discord.Interaction):
+"""     async def check_params(self, checking_params: dict, interaction: discord.Interaction):
         
         try:
 
@@ -400,7 +401,7 @@ class NAI(commands.Cog):
         except Exception as e:
             logger.error(f"Error in check_params: {e}")
             await interaction.edit_original_response(content=f"{str(e)}")
-            
+ """            
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))
