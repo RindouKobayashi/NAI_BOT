@@ -74,44 +74,6 @@ class BASIC(commands.Cog):
         await interaction.response.send_message(f"For vibe transfer: please use vibe_transfer command. You are allowed 5 images with their values. All of these will be stored as base64 strings and corresponding values in json. When using nai command, you can use vibe_transfer_switch to true to auto retrieve your own vibe transfer data.", ephemeral=True)
 
 
-    """
-    # A test command that check against AUTOCOMPLETE_DATA
-    @app_commands.command(name="search", description="Search with multiple independent terms")
-    async def search(self, interaction: discord.Interaction, query: str):
-        await interaction.response.send_message(f"You searched for: {query}")
-
-    @search.autocomplete('query')
-    async def search_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        def search_current_term(query):
-            terms = query.split(',')
-            current_term = terms[-1].strip().lower()
-            
-            if not current_term:
-                return []
-
-            results = [
-                item for item in AUTOCOMPLETE_DATA
-                if item.lower().startswith(current_term)
-            ]
-    
-            return results[:25]  # Limit to 25 results as per Discord's limit
-
-        results = await asyncio.to_thread(search_current_term, current)
-        
-        # Prepare the choices, including the parts of the query that are already typed
-        prefix = ','.join(current.split(',')[:-1]).strip()
-        if prefix:
-            prefix += ', '
-        
-        valid_choices = [
-            app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}")
-            for item in results
-            if len(item) > 0  # Ensure item is not empty
-        ]
-        
-        return valid_choices
-    """
-
     @app_commands.command(name="whois", description="Get information about a user")
     async def whois(self, interaction: discord.Interaction, user: discord.User = None):
         """Get information about a user"""
@@ -152,7 +114,15 @@ class BASIC(commands.Cog):
                 else:
                     await interaction.response.send_message(f"Failed to get installed users. Status code: {response.status}", ephemeral=True)
 
-        
+    @app_commands.command(name="feedback", description="Send feedback/suggestions to the bot owner")
+    async def feedback(self, interaction: discord.Interaction, feedback: str):
+        """Send feedback to the bot owner"""
+        logger.info(f"COMMAND 'FEEDBACK' USED BY: {interaction.user} ({interaction.user.id})")
+        # Send feedback to the bot owner via dm
+        bot_owner = self.bot.get_user(settings.BOT_OWNER_ID)
+        await bot_owner.send(f"Feedback from {interaction.user} : `{feedback}`\nLink to person: <https://discord.com/users/{interaction.user.id}> ")
+        await interaction.response.send_message("Thank you for your feedback!", ephemeral=True, delete_after=20)
+
         
 
 
