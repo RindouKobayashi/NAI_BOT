@@ -34,7 +34,6 @@ ANIMEAI_SERVER = 1024739383124963429
 
 DATABASE_CHANNEL_ID = 1268976168233599117
 
-TO_DATABASE = False
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
