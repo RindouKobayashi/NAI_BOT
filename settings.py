@@ -13,6 +13,7 @@ load_dotenv()
 branch = os.getenv("GITHUB_BRANCH", 'main')
 if branch == 'dev':
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
+    TO_DATABASE = False
 else:
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN")
 NAI_EMAIL = os.getenv("NAI_EMAIL")
