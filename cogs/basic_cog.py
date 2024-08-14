@@ -118,7 +118,7 @@ class BASIC(commands.Cog):
         logger.info(f"COMMAND 'FEEDBACK' USED BY: {interaction.user} ({interaction.user.id})")
         # Send feedback to the bot owner via dm
         bot_owner = self.bot.get_user(settings.BOT_OWNER_ID)
-        await bot_owner.send(f"Feedback from {interaction.user} : `{feedback}`\nLink to person: <https://discord.com/users/{interaction.user.id}> ")
+        await bot_owner.send(f"Feedback from {interaction.user} : `{feedback}`\nLink to person: [{interaction.user.display_name}](<https://discord.com/users/{interaction.user.id}>) ")
         await interaction.response.send_message("Thank you for your feedback!", ephemeral=True, delete_after=20)
 
         
