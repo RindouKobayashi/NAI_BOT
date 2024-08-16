@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Union
 import discord
 from discord import app_commands
 from copy import deepcopy
@@ -11,8 +11,8 @@ class Checking_Params(TypedDict):
     height: int
     steps: int
     cfg: float
-    sampler: app_commands.Choice[str] | str
-    smea: app_commands.Choice[str] | str
+    sampler: Union[app_commands.Choice[str], str]
+    smea: Union[app_commands.Choice[str], str]
     seed: int
     model: app_commands.Choice[str]
     quality_toggle: bool
