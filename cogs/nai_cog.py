@@ -18,10 +18,10 @@ import uuid
 from core.viewhandler import VibeTransferView
 from core.checking_params import check_params
 import core.dict_annotation as da
+from core.nai_vars import Nai_vars
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
-
 
 class NAI(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -36,46 +36,23 @@ class NAI(commands.Cog):
     @app_commands.command(name="nai", description="Generate an image using NovelAI")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.choices(
-        sampler=[
-            app_commands.Choice(name="k_euler", value="k_euler"),
-            app_commands.Choice(name="k_euler_ancestral", value="k_euler_ancestral"),
-            app_commands.Choice(name="k_dpmpp_2s_ancestral", value="k_dpmpp_2s_ancestral"),
-            app_commands.Choice(name="k_dpmpp_2m", value="k_dpmpp_2m"),
-            app_commands.Choice(name="k_dpmpp_sde", value="k_dpmpp_sde"),
-            app_commands.Choice(name="ddim", value="ddim"),
-        ],
-        model=[
-            app_commands.Choice(name="nai-diffusion-3", value="nai-diffusion-3"),
-            app_commands.Choice(name="nai-diffusion-2", value="nai-diffusion-2"),
-            app_commands.Choice(name="nai-diffusion", value="nai-diffusion"),
-            app_commands.Choice(name="safe-diffusion", value="safe-diffusion"),
-            app_commands.Choice(name="nai-diffusion-furry", value="nai-diffusion-furry"),
-            app_commands.Choice(name="nai-diffusion-furry-3", value="nai-diffusion-furry-3"),
-        ],
-        undesired_content_presets=[
-            app_commands.Choice(name="Heavy", value="heavy"),
-            app_commands.Choice(name="Light", value="light"),
-            app_commands.Choice(name="Human_Focus", value="human_focus"),
-            app_commands.Choice(name="None", value="none"),
-        ],
-        smea=[
-            app_commands.Choice(name="SMEA", value="SMEA"),
-            app_commands.Choice(name="SMEA+DYN", value="SMEA+DYN"),
-            app_commands.Choice(name="None", value="None"),
-        ]
+        sampler=Nai_vars.samplers_choices,
+        model=Nai_vars.models_choices,
+        undesired_content_presets=Nai_vars.undesired_content_presets.presets_choices,
+        smea=Nai_vars.smea_choices
     )
     @app_commands.describe(
         positive="Positive prompt for image generation",
         negative="Negative prompt for image generation",
-        width="Image width (default: 832)",
-        height="Image height (default: 1216)",
-        steps="Number of steps (default: 28)",
+        width=f"Image width in 64 step increments (default: {Nai_vars.width.default})",
+        height=f"Image height in 64 step increments (default: {Nai_vars.height.default})",
+        steps=f"Number of steps (default: {Nai_vars.steps.default})",
         cfg="CFG scale (default: 5.0)",
         sampler="Sampling method (default: k_euler)",
         smea="SMEA and SMEA+DYN versions of samplers perform better at high res (default: None)",
         seed="Seed for generation (default: 0, random)",
         model="Model to use (default: nai-diffusion-3)",
-        quality_toggle="Tags to increase qualityh will be prepended to the prompt (default: True)",
+        quality_toggle="Tags to increase quality, will be prepended to the prompt (default: True)",
         undesired_content_presets="Undesired content presets (default: Heavy)",
         prompt_conversion_toggle="Convert Auto1111 way of prompt to NovelAI way of prompt (default: False)",
         upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
@@ -84,10 +61,10 @@ class NAI(commands.Cog):
     async def nai(self, interaction: discord.Interaction, 
                   positive: str, 
                   negative: str = None, 
-                  width: int = 832, 
-                  height: int = 1216, 
-                  steps: int = 28, 
-                  cfg: float = 5.0, 
+                  width: int = Nai_vars.width.default, 
+                  height: int = Nai_vars.height.default, 
+                  steps: int = Nai_vars.steps.default, 
+                  cfg: float = Nai_vars.cfg.default, 
                   sampler: app_commands.Choice[str] = "k_euler", 
                   smea: app_commands.Choice[str] = "None",
                   seed: int = 0,
@@ -150,7 +127,8 @@ class NAI(commands.Cog):
                 "interaction": interaction,
                 "message": message,
                 "params": params,
-                "checking_params": checking_params
+                "checking_params": checking_params,
+                "reference_message": None
             }
             
             # Add the request to the queue
@@ -162,7 +140,7 @@ class NAI(commands.Cog):
                 return
 
         except Exception as e:
-            #logger.error(f"Error in NAI command: {str(e)}")
+            logger.error(f"Error in NAI command: {str(e)}")
             #await interaction.edit_original_response(content=f"An error occurred while queueing the image generation. {str(e)}")
             pass
 

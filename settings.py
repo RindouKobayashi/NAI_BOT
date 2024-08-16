@@ -5,6 +5,7 @@ import logging
 import asyncio
 import csv
 import uuid
+import copy
 
 from dotenv import load_dotenv
 from logging.config import dictConfig
@@ -101,3 +102,5 @@ with open("danbooru.csv", newline="", encoding="utf-8") as csvfile:
 
 class Globals:
     remix_views = {}
+    select_views = {}
+    select_views_generation_data = {}

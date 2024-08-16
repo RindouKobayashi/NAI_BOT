@@ -1,10 +1,11 @@
-from settings import logger, USER_VIBE_TRANSFER_DIR
-from discord.ui import Modal, TextInput
+from settings import logger, USER_VIBE_TRANSFER_DIR, Globals, copy
+from discord.ui import Modal, TextInput, Select
+from discord import SelectMenu
 import discord
 import requests
 import json
 import base64
-
+import core.dict_annotation as da
 
 class EditModal(Modal):
     def __init__(self, title: str, page: int, update_message):
@@ -125,5 +126,52 @@ class AddModal(Modal):
             await interaction.edit_original_response(content="`Invalid image URL. Please enter a valid image URL.`")
         except ValueError as e:
             await interaction.edit_original_response(content=f"`{str(e)}`")
+        except Exception as e:
+            await interaction.edit_original_response(content=f"`An error occurred: {str(e)}`")
+
+class RemixModal(Modal):
+    def __init__(self, bundle_data: da.BundleData, label: str):
+        super().__init__(title="Remix", timeout=120)
+        self.bundle_data = bundle_data
+        self.label = label
+        self.placeholder = f"Edit {label}"
+
+        if self.label in ["positive", "negative"]: # Checking for string
+            self.add_item(TextInput(label=self.label, 
+                                    style=discord.TextStyle.long, 
+                                    default=self.bundle_data['checking_params'][self.label][:4000],
+                                    min_length=1,
+                                    max_length=4000,
+                                    required=True)
+                                    )
+        elif label in ["width", "height", "steps", "seed"]: # Checking for int
+            self.add_item(TextInput(label=self.label, 
+                                    style=discord.TextStyle.short, 
+                                    default=self.bundle_data['checking_params'][self.label],
+                                    min_length=1,
+                                    max_length=4, 
+                                    required=False)
+                                    )
+        elif label in ["cfg"]: # Checking for float
+            self.add_item(TextInput(label=self.label, 
+                                    style=discord.TextStyle.short, 
+                                    default=str(self.bundle_data['checking_params'][self.label]), 
+                                    required=False)
+                                    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            await interaction.response.defer()
+            new_data = da.deep_copy_bundle_data(self.bundle_data)
+            if self.label in ["positive", "negative"]: # FOR STRING
+                new_data['checking_params'][self.label] = self.children[0].value
+            elif self.label in ["width", "height", "steps", "seed"]: # FOR INT
+                new_data['checking_params'][self.label] = int(self.children[0].value)
+            elif self.label in ["cfg"]: # FOR FLOAT
+                new_data['checking_params'][self.label] = float(self.children[0].value)
+            #Globals.select_views[self.bundle_data["request_id"]] = self.bundle_data
+            Globals.select_views_generation_data[new_data["request_id"]] = new_data
+            await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+
         except Exception as e:
             await interaction.edit_original_response(content=f"`An error occurred: {str(e)}`")

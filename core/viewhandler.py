@@ -5,9 +5,11 @@ import base64
 import json
 import os
 import random
-from core.modalhandler import EditModal, AddModal
+from core.modalhandler import EditModal, AddModal, RemixModal
 from core.nai_utils import base64_to_image
 import core.dict_annotation as da
+from core.checking_params import check_params
+from core.nai_vars import Nai_vars
 
 class VibeTransferView(View):
     def __init__(self, interaction: discord.Interaction):
@@ -208,14 +210,399 @@ class RemixView(View):
         new_data["interaction"] = interaction
         new_data["message"] = await interaction.followup.send("♻️ Seeding ♻️")
         from core.queuehandler import nai_queue
+        from core.queuehandler import NAIQueue
+        nai_queue: NAIQueue 
         await nai_queue.add_to_queue(new_data)
+
+    @discord.ui.button(emoji="🎨",
+                        style=discord.ButtonStyle.primary,
+                        label="reMix")
+    async def remix(self, interaction: discord.Interaction, button: Button):
+        logger.info(f"reMix button pressed by {interaction.user.name} ({interaction.user.id})")
+        await interaction.response.defer()
+        button.custom_id = self.bundle_data["request_id"]
+        new_data: da.BundleData = self.bundle_data.copy()
+        new_data["request_id"] = str(uuid.uuid4())
+        new_data["interaction"] = interaction
+        new_data["reference_message"] = self.bundle_data["message"]
+        new_data["message"] = await interaction.followup.send("🎨 Mixing 🎨", ephemeral=True)
+        Globals.select_views[new_data["request_id"]] = SelectMenuView(new_data)
+        await Globals.select_views[new_data["request_id"]].send()
+
+        #from core.queuehandler import nai_queue
+        #await nai_queue.add_to_queue(new_data)
 
     async def on_timeout(self):
         self.stop()
         Globals.remix_views.pop(self.bundle_data["request_id"])
         message = self.bundle_data["message"]
         try:
-            self.reseed.disabled = True
+            for child in self.children:
+                child: Button | discord.ui.Select
+                child.disabled = True
+            #self.reseed.disabled = True
+            #self.remix.disabled = True
+            await message.edit(view=self)
+        except discord.NotFound:
+            # Message has already been deleted
+            pass
+        except discord.HTTPException as e:
+            logger.error(f"Failed to edit message on timeout: {e}")
+            pass
+
+class SMEAMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData):
+        self.bundle_data = bundle_data
+        options = [
+            discord.SelectOption(
+                label="SMEA",
+                value="SMEA",
+                description="SMEA",
+            ),
+            discord.SelectOption(
+                label="SMEA+DYN",
+                value="SMEA+DYN",
+                description="SMEA+DYN",
+            ),
+            discord.SelectOption(
+                label="None",
+                value="None",
+                description="None",
+            ),
+        ]
+        super().__init__(placeholder="Select SMEA type", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        new_data["checking_params"]["smea"] = self.values[0]
+        Globals.select_views_generation_data[new_data["request_id"]] = new_data
+        message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+        await message.delete(delay=1)
+
+class SMEAMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.add_item(SMEAMenu(self.bundle_data))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    async def on_timeout(self):
+        self.stop()
+
+class ModelMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData):
+        self.bundle_data = bundle_data
+        options = Nai_vars.models_select_options
+        super().__init__(placeholder="Select model", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        new_data["checking_params"]["model"] = self.values[0]
+        Globals.select_views_generation_data[new_data["request_id"]] = new_data
+        message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+        await message.delete(delay=1)
+
+class ModelMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.add_item(ModelMenu(self.bundle_data))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    async def on_timeout(self):
+        self.stop()
+
+class TrueFalseMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData, name: str):
+        self.bundle_data = bundle_data
+        self.name = name
+        options = [
+            discord.SelectOption(
+                label="True",
+                description="True",
+            ),
+            discord.SelectOption(
+                label="False",
+                description="False",
+            ),
+        ]
+        super().__init__(placeholder=f"Select {self.name}", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        new_data["checking_params"][self.name] = self.values[0]
+        Globals.select_views_generation_data[new_data["request_id"]] = new_data
+        message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+        await message.delete(delay=1)
+
+class TrueFalseMenuView(View):
+    def __init__(self, bundle_data: da.BundleData, name: str):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.name = name
+        self.add_item(TrueFalseMenu(self.bundle_data, self.name))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    async def on_timeout(self):
+        self.stop()
+
+class UndesiredContentMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData):
+        self.bundle_data = bundle_data
+        options = Nai_vars.undesired_content_presets(self.bundle_data["checking_params"]["model"]).undesired_content_select_options
+        super().__init__(placeholder="Select undesired content", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        new_data["checking_params"]["undesired_content_presets"] = self.values[0]
+        Globals.select_views_generation_data[new_data["request_id"]] = new_data
+        message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+        await message.delete(delay=1)
+
+class UndesiredContentMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.add_item(UndesiredContentMenu(self.bundle_data))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    async def on_timeout(self):
+        self.stop()
+
+class SamplerMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData):
+        self.bundle_data = bundle_data
+        options = [
+            discord.SelectOption(
+                label="k_euler",
+                value="k_euler",
+                description="k_euler",
+            ),
+            discord.SelectOption(
+                label="k_euler_ancestral",
+                value="k_euler_ancestral",
+                description="k_euler_ancestral",
+            ),
+            discord.SelectOption(
+                label="k_dpmpp_2s_ancestral",
+                value="k_dpmpp_2s_ancestral",
+                description="k_dpmpp_2s_ancestral",
+            ),
+            discord.SelectOption(
+                label="k_dpmpp_2m",
+                value="k_dpmpp_2m",
+                description="k_dpmpp_2m",
+            ),
+            discord.SelectOption(
+                label="k_dpmpp_sde",
+                value="k_dpmpp_sde",
+                description="k_dpmpp_sde",
+            ),
+            discord.SelectOption(
+                label="ddim",
+                value="ddim",
+                description="ddim",
+            ),
+        ]
+        super().__init__(placeholder="Select Sampler", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        new_data["checking_params"]["sampler"] = self.values[0]
+        Globals.select_views_generation_data[new_data["request_id"]] = new_data
+        message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+        await message.delete(delay=1)
+
+class SamplerMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.add_item(SamplerMenu(self.bundle_data))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    async def on_timeout(self):
+        self.stop()
+
+class SelectMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(
+            row=0,
+        )
+        self.bundle_data = bundle_data
+        options = [
+            discord.SelectOption(
+                label="positive",
+                description="Positive prompt for image generation",
+            ),
+            discord.SelectOption(
+                label="negative",
+                description="Negative prompt for image generation",
+            ),
+            discord.SelectOption(
+                label="width",
+                description="Width of the generated image",
+            ),
+            discord.SelectOption(
+                label="height",
+                description="Height of the generated image",
+            ),
+            discord.SelectOption(
+                label="steps",
+                description="Number of denoising steps",
+            ),
+            discord.SelectOption(
+                label="cfg",
+                description="CFG scale",
+            ),
+            discord.SelectOption(
+                label="sampler",
+                description="Sampling method",
+            ),
+            discord.SelectOption(
+                label="smea",
+                description="SMEA and SMEA+DYN versions of samplers perform better at high res",
+            ),
+            discord.SelectOption(
+                label="seed",
+                description="Seed for the image generation",
+            ),
+            discord.SelectOption(
+                label="model",
+                description="Model to use for image generation",
+            ),
+            discord.SelectOption(
+                label="quality_toggle",
+                description="Tags to increase quality, will be prepended to the prompt",
+            ),
+            discord.SelectOption(
+                label="undesired_content_presets",
+                description="Tags to remove undesired content, will be appended to the prompt",
+            ),
+            discord.SelectOption(
+                label="prompt_conversion_toggle",
+                description="Convert Auto1111 way of prompt to NovelAI way of prompt",
+            ),
+            discord.SelectOption(
+                label="upscale",
+                description="Upscale image by 4x. Only available for images up to 640x640",
+            ),
+            discord.SelectOption(
+                label="vibe_transfer_switch",
+                description="Vibe transfer switch",
+            ),
+        ]
+        super().__init__(placeholder="Select to edit", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        ### TODO: Add logic to edit the image
+        # Check if request_id is in the select_views
+        if self.bundle_data["request_id"] in Globals.select_views:
+            # Update self.bundle_data with select_views_generation_data if request_id is in the select_views
+            if self.bundle_data["request_id"] in Globals.select_views_generation_data:
+                self.bundle_data = Globals.select_views_generation_data[self.bundle_data["request_id"]]
+            if self.values[0] in ["positive", "negative", "width", "height", "steps", "seed", "cfg"]:
+                remix_modal = RemixModal(self.bundle_data, self.values[0])
+                await interaction.response.send_modal(remix_modal)
+            elif self.values[0] == "sampler":
+                await interaction.response.send_message(view=SamplerMenuView(self.bundle_data), ephemeral=True)
+            elif self.values[0] == "smea":
+                await interaction.response.send_message(view=SMEAMenuView(self.bundle_data), ephemeral=True)
+            elif self.values[0] == "model":
+                await interaction.response.send_message(view=ModelMenuView(self.bundle_data), ephemeral=True)
+            elif self.values[0] in ["quality_toggle", "prompt_conversion_toggle", "upscale", "vibe_transfer_switch"]:
+                await interaction.response.send_message(view=TrueFalseMenuView(self.bundle_data, name=self.values[0]), ephemeral=True)
+            elif self.values[0] == "undesired_content_presets":
+                await interaction.response.send_message(view=UndesiredContentMenuView(self.bundle_data), ephemeral=True)
+
+class SelectMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.add_item(SelectMenu(self.bundle_data))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    @discord.ui.button(emoji="✅",
+                       style=discord.ButtonStyle.green,
+                       label="Go",
+                       row=1)
+    async def go(self, interaction: discord.Interaction, button: Button):
+        logger.info(f"Go button pressed by {interaction.user.name} ({interaction.user.id})")
+        await interaction.response.defer()
+        #await interaction.response.send_message("🎨 Remixing in progress 🎨")
+        button.custom_id = self.bundle_data["request_id"]
+        if Globals.select_views_generation_data.get(self.bundle_data["request_id"]):
+            new_data: da.BundleData = Globals.select_views_generation_data[self.bundle_data["request_id"]].copy()
+            channel = interaction.channel
+            message = await channel.send("🎨 Remixing in progress 🎨", reference=new_data["reference_message"])
+            #message = await interaction.edit_original_response(content="🎨 Adding your request to the queue 🎨")
+            new_data["message"] = message
+            new_data["interaction"] = interaction
+            try:
+                checking_params = await check_params(new_data["checking_params"], interaction=interaction)
+                params: da.Params = {
+                    "positive": checking_params["positive"],
+                    "negative": checking_params["negative"],
+                    "width": checking_params["width"],
+                    "height": checking_params["height"],
+                    "steps": checking_params["steps"],
+                    "cfg": checking_params["cfg"],
+                    "sampler": checking_params["sampler"],
+                    "sm": checking_params["sm"],
+                    "sm_dyn": checking_params["sm_dyn"],
+                    "seed": checking_params["seed"],
+                    "model": checking_params["model"],
+                    "vibe_transfer_switch": checking_params["vibe_transfer_switch"],
+                    "upscale": checking_params["upscale"],
+                }
+                bundle_data: da.BundleData = {
+                    "request_id": button.custom_id,
+                    "interaction": interaction,
+                    "message": message,
+                    "params": params,
+                    "checking_params": checking_params,
+                }
+                from core.queuehandler import nai_queue
+                from core.queuehandler import NAIQueue
+                nai_queue: NAIQueue
+                #logger.info(f"Adding to queue: {bundle_data['params']}")
+                success = await nai_queue.add_to_queue(bundle_data)
+                if success:
+                    await interaction.delete_original_response()
+            except Exception as e:
+                logger.error(f"Error while adding to queue: {e}")
+                await message.edit(content="❌ Error while adding to queue ❌", delete_after=10)
+    
+    async def on_timeout(self):
+        self.stop()
+        Globals.select_views.pop(self.bundle_data["request_id"])
+        message = self.bundle_data["message"]
+        try:
+            for child in self.children:
+                child: Button | discord.ui.Select
+                child.disabled = True
             await message.edit(view=self)
         except discord.NotFound:
             # Message has already been deleted

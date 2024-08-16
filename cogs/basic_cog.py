@@ -63,6 +63,8 @@ class BASIC(commands.Cog):
         for guild in self.bot.guilds:
             member = guild.get_member(self.bot.user.id)
             await member.edit(nick=None)
+        from main import shutdown_tasks
+        await shutdown_tasks()
         await self.bot.close()
 
     @app_commands.command(name="how_to_vibe_transfer", description="How to vibe transfer")
