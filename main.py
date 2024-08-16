@@ -18,9 +18,9 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 @bot.event
 async def on_ready():
     logger.info(f"User: {bot.user} (ID: {bot.user.id})")
-    for guild in bot.guilds:
+    """ for guild in bot.guilds:
         member = guild.get_member(bot.user.id)
-        await member.edit(nick=None)
+        await member.edit(nick=None) """
     
     # Start queuehandler
     await queuehandler.start_queue(bot)
