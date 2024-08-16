@@ -106,7 +106,7 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
             ### Check if negative prompt already contained undesired content presets tags
             if checking_params["negative"].find(Nai_vars.undesired_content_presets(model=checking_params["model"]).presets[checking_params["undesired_content_presets"]]) == -1: ## If not already contains
                 #logger.info("FOUND: " + Nai_vars.undesired_content_presets(model=checking_params["model"]).presets[checking_params["undesired_content_presets"]])
-                checking_params["negative"] += Nai_vars.undesired_content_presets(model=checking_params["model"]).presets[checking_params["undesired_content_presets"]] ## Add tags
+                checking_params["negative"] = checking_params["negative"] + Nai_vars.undesired_content_presets(model=checking_params["model"]).presets[checking_params["undesired_content_presets"]] ## Add tags
 
             ### Check quality_toggle
             if checking_params["quality_toggle"] == True:
