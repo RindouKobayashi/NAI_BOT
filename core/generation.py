@@ -85,7 +85,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                                 nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
                                 nai_params['reference_strength_multiple'].append(entry['ref_strength'])
 
-                message = await message.edit(content=f"<:wut:1161203118575460393> Generating image <:wut:1161203118575460393>")
+                message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>")
 
                 # Start the timer
                 start_time = datetime.now()
