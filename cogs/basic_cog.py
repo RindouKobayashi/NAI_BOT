@@ -53,12 +53,6 @@ class BASIC(commands.Cog):
             await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
         await interaction.response.send_message("Shutting down...", ephemeral=True, delete_after=time)
-        for guild in self.bot.guilds:
-            member = guild.get_member(self.bot.user.id)
-            if reason:
-                await member.edit(nick=f"{reason}")
-            else:
-                await member.edit(nick=f"Shutting down in {time} seconds...")
         await asyncio.sleep(time)
         from main import shutdown_tasks
         await shutdown_tasks()
