@@ -60,9 +60,6 @@ class BASIC(commands.Cog):
             else:
                 await member.edit(nick=f"Shutting down in {time} seconds...")
         await asyncio.sleep(time)
-        for guild in self.bot.guilds:
-            member = guild.get_member(self.bot.user.id)
-            await member.edit(nick=None)
         from main import shutdown_tasks
         await shutdown_tasks()
         await self.bot.close()
