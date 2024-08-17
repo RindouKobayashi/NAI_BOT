@@ -149,7 +149,7 @@ class RemixModal(Modal):
                                     style=discord.TextStyle.short, 
                                     default=self.bundle_data['checking_params'][self.label],
                                     min_length=1,
-                                    max_length=4, 
+                                    max_length=4000, 
                                     required=False)
                                     )
         elif label in ["cfg"]: # Checking for float
