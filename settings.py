@@ -37,6 +37,22 @@ DATABASE_CHANNEL_ID = 1268976168233599117
 
 BOT_OWNER_ID = 125331697867816961
 
+# Define custom formatter for colored console output
+class ColoredFormatter(logging.Formatter):
+    COLORS = {
+        'DEBUG': '\033[94m',    # Blue
+        'INFO': '\033[92m',     # Green
+        'WARNING': '\033[93m',  # Yellow
+        'ERROR': '\033[91m',    # Red
+        'CRITICAL': '\033[95m', # Magenta
+    }
+    RESET = '\033[0m'
+
+    def format(self, record):
+        color = self.COLORS.get(record.levelname, self.RESET)
+        message = super().format(record)
+        return f"{color}{message}{self.RESET}"
+
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -46,19 +62,23 @@ LOGGING_CONFIG = {
         },
         "standard": {
             "format": "%(levelname)-10s - %(name)-15s : %(message)s",
+        },
+        "colored": {
+            "()": ColoredFormatter,
+            "format": "%(levelname)-10s - %(name)-15s : %(message)s",
         }
     },
     "handlers": {
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
-            "formatter": "standard",
+            "formatter": "colored",
             "stream": "ext://sys.stdout",
         },
         "console2": {
             "level": "WARNING",
             "class": "logging.StreamHandler",
-            "formatter": "standard",
+            "formatter": "colored",
             "stream": "ext://sys.stdout",
         },
         "file": {
