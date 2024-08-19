@@ -137,7 +137,6 @@ class NAI(commands.Cog):
             
             # Add the request to the queue
             success = await nai_queue.add_to_queue(bundle_data)
-            logger.info(bundle_data)
 
             if not success:
                 # The message has already been edited in the add_to_queue function
@@ -270,6 +269,7 @@ class NAI(commands.Cog):
             
         except Exception as e:
             logger.error(f"Error processing 'DIRECTOR_TOOLS' command: {str(e)}")
+            await interaction.edit_original_response(content=f"Error: {str(e)}")
             
 
     @app_commands.command(name="vibe_transfer", description="Store reference images for vibe transfer with info and strength value")
