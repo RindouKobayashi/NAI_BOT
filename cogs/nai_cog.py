@@ -269,8 +269,8 @@ class NAI(commands.Cog):
             
         except Exception as e:
             logger.error(f"Error processing 'DIRECTOR_TOOLS' command: {str(e)}")
-            await interaction.edit_original_response(content=f"Error: {str(e)}")
-            
+            message = await interaction.edit_original_response(content=f"Error: {str(e)}",)
+            await message.delete(delay=10)
 
     @app_commands.command(name="vibe_transfer", description="Store reference images for vibe transfer with info and strength value")
     @app_commands.allowed_installs(guilds=True, users=True)
