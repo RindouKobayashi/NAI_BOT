@@ -202,12 +202,13 @@ class RemixView(View):
     async def reseed(self, interaction: discord.Interaction, button: Button):
         logger.info(f"reSeed button pressed by {interaction.user.name} ({interaction.user.id})")
         await interaction.response.defer()
-        button.custom_id = self.bundle_data["request_id"]
+        #button.custom_id = self.bundle_data["request_id"]
         new_data: da.BundleData = self.bundle_data.copy()
         new_data["checking_params"]["seed"] = random.randint(0, 9999999999)
         new_data["params"]["seed"] = new_data["checking_params"]["seed"]
         new_data["request_id"] = str(uuid.uuid4())
         new_data["interaction"] = interaction
+        new_data["number_of_tries"] = 1
         new_data["message"] = await interaction.followup.send("♻️ Seeding ♻️")
         from core.queuehandler import nai_queue
         from core.queuehandler import NAIQueue
@@ -220,7 +221,7 @@ class RemixView(View):
     async def remix(self, interaction: discord.Interaction, button: Button):
         logger.info(f"reMix button pressed by {interaction.user.name} ({interaction.user.id})")
         await interaction.response.defer()
-        button.custom_id = self.bundle_data["request_id"]
+        #button.custom_id = self.bundle_data["request_id"]
         new_data: da.BundleData = self.bundle_data.copy()
         new_data["request_id"] = str(uuid.uuid4())
         new_data["interaction"] = interaction
@@ -552,7 +553,7 @@ class SelectMenuView(View):
         logger.info(f"Go button pressed by {interaction.user.name} ({interaction.user.id})")
         await interaction.response.defer()
         #await interaction.response.send_message("🎨 Remixing in progress 🎨")
-        button.custom_id = self.bundle_data["request_id"]
+        #button.custom_id = self.bundle_data["request_id"]
         if Globals.select_views_generation_data.get(self.bundle_data["request_id"]):
             new_data: da.BundleData = Globals.select_views_generation_data[self.bundle_data["request_id"]].copy()
             channel = interaction.channel
@@ -562,28 +563,31 @@ class SelectMenuView(View):
             new_data["interaction"] = interaction
             try:
                 checking_params = await check_params(new_data["checking_params"], interaction=interaction)
-                params: da.Params = {
-                    "positive": checking_params["positive"],
-                    "negative": checking_params["negative"],
-                    "width": checking_params["width"],
-                    "height": checking_params["height"],
-                    "steps": checking_params["steps"],
-                    "cfg": checking_params["cfg"],
-                    "sampler": checking_params["sampler"],
-                    "sm": checking_params["sm"],
-                    "sm_dyn": checking_params["sm_dyn"],
-                    "seed": checking_params["seed"],
-                    "model": checking_params["model"],
-                    "vibe_transfer_switch": checking_params["vibe_transfer_switch"],
-                    "upscale": checking_params["upscale"],
-                }
-                bundle_data: da.BundleData = {
-                    "request_id": button.custom_id,
-                    "interaction": interaction,
-                    "message": message,
-                    "params": params,
-                    "checking_params": checking_params,
-                }
+                params: da.Params = da.create_with_defaults(
+                    da.Params,
+                    positive=checking_params["positive"],
+                    negative=checking_params["negative"],
+                    width=checking_params["width"],
+                    height=checking_params["height"],
+                    steps=checking_params["steps"],
+                    cfg=checking_params["cfg"],
+                    sampler=checking_params["sampler"],
+                    sm=checking_params["sm"],
+                    sm_dyn=checking_params["sm_dyn"],
+                    seed=checking_params["seed"],
+                    model=checking_params["model"],
+                    vibe_transfer_switch=checking_params["vibe_transfer_switch"],
+                    upscale=checking_params["upscale"],
+                )
+                bundle_data: da.BundleData = da.create_with_defaults(
+                    da.BundleData,
+                    type="txt2img",
+                    request_id=self.bundle_data["request_id"],
+                    interaction=interaction,
+                    message=message,
+                    params=params,
+                    checking_params=checking_params,
+                )
                 from core.queuehandler import nai_queue
                 from core.queuehandler import NAIQueue
                 nai_queue: NAIQueue

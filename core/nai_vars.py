@@ -106,3 +106,13 @@ class Nai_vars:
                 self.tags = "masterpiece, best quality, "
                 self.add_way = "prepend"
 
+    class director_tools():
+        req_type = ["lineart", "sketch", "colorize", "emotion", "declutter"]
+        req_type_choice = [app_commands.Choice(name=name, value=name) for name in req_type]
+        emotions = ["neutral", "happy", "sad", "angry", "surprise", "tired", "excited",
+                    "nervous", "thinking", "confused", "shy", "disgusted", "smug",
+                    "bored", "laughing", "irritated", "aroused", "embarrassed", "worried",
+                    "love", "determined", "hurt", "playful"]
+        emotions_choice = [app_commands.Choice(name=name, value=f"{name};;") for name in emotions]
+        defry = ["0", "1", "2", "3", "4", "5"]
+        defry_choice = [app_commands.Choice(name=name, value=name) for name in defry]

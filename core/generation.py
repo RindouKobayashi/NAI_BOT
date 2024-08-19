@@ -35,6 +35,21 @@ class NovelAIAPI:
                     raise
 
     @staticmethod
+    async def director_tools(session, access_token, width, height, image, req_type, prompt: str = "", defry: int = 0):
+        data = {
+            "width": width,
+            "height": height,
+            "image": image,
+            "prompt": prompt,
+            "req_type": req_type,
+            "defry": defry
+        }
+        headers = {"Authorization": f"Bearer {access_token}"}
+        async with session.post(f"{NovelAIAPI.BASE_URL}/ai/augment-image", json=data, headers=headers) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    @staticmethod
     async def upscale(session, access_token, image_base64: str, width: int, height: int, scale: int):
         data = {"image": image_base64, "width": width, "height": height, "scale": scale}
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -43,8 +58,8 @@ class NovelAIAPI:
             return await response.read()
 
 async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
-    number_of_tries = 1
-    while number_of_tries > 0:
+    bundle_data['number_of_tries'] = bundle_data['number_of_tries']
+    while bundle_data['number_of_tries'] >= 0:
         try:
             async with aiohttp.ClientSession() as session:
 
@@ -170,12 +185,107 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
 
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
-            if number_of_tries > 0:
-                reply_content = f"An error occurred while processing your request. Retrying in `10` seconds. (`{number_of_tries}` tries left)"
+            if bundle_data['number_of_tries'] > 0:
+                reply_content = f"An error occurred while processing your request. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
-                number_of_tries -= 1
+                bundle_data['number_of_tries'] -= 1
                 await asyncio.sleep(10)
                 await process_txt2img(bot, bundle_data)
             else:
                 reply_content = f"An error occurred while processing your request. Please try again later."
                 await message.edit(content=reply_content)
+                return True
+
+async def process_director_tools(bot: commands.Bot, bundle_data: da.BundleData):
+    while bundle_data['number_of_tries'] >= 0:
+        try:
+            async with aiohttp.ClientSession() as session:
+                if bundle_data["director_tools_params"]["req_type"] == "emotion":
+                    bundle_data["director_tools_params"]["prompt"] = f"{bundle_data['director_tools_params']['emotion']};;{bundle_data['director_tools_params']['prompt']}"
+                request_id = bundle_data['request_id']
+                interaction: Interaction = bundle_data['interaction']
+                message: Message = bundle_data['message']
+                original_image = await bundle_data['director_tools_params']['image'].read()
+                original_image_string = base64.b64encode(original_image).decode("utf-8")
+
+                message = await message.edit(content="<a:evilrv1:1269168240102215731> Directing image <a:evilrv1:1269168240102215731>")
+
+                # Start the timer
+                start_time = datetime.now()
+
+                # Call director tools API
+                zipped_bytes = await NovelAIAPI.director_tools(
+                    session,
+                    NAI_API_TOKEN,
+                    width=bundle_data['director_tools_params']['width'],
+                    height=bundle_data['director_tools_params']['height'],
+                    image=original_image_string,
+                    req_type=bundle_data['director_tools_params']['req_type'],
+                    prompt=bundle_data['director_tools_params']['prompt'],
+                    defry=bundle_data['director_tools_params']['defry'],
+                )
+
+                # Process the response
+                zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
+                image_bytes = zipped.read(zipped.infolist()[0])
+
+                # Save the image
+                file_path = f"director_tools_{interaction.user.id}.png"
+                original_file_path = f"original_{file_path}"
+                output_dir = Path("nai_output")
+                output_dir.mkdir(exist_ok=True)
+                (output_dir / file_path).write_bytes(image_bytes)
+                (output_dir / original_file_path).write_bytes(original_image)
+
+                # Stop the timer
+                end_time = datetime.now()
+                elapsed_time = end_time - start_time
+                elapsed_time = round(elapsed_time.total_seconds(), 2)
+
+                # Some information for the user
+                reply_content = f"Request: `{bundle_data['director_tools_params']['req_type']}` | Elapsed time: `{elapsed_time}s`"
+                reply_content += f"\nBy: {interaction.user.mention}"
+
+                # Send the image
+                files = []
+                file_path = f"{output_dir}/{file_path}"
+                original_file_path = f"{output_dir}/{original_file_path}"
+                file = File(file_path)
+                files.append(File(original_file_path))
+                files.append(file)
+                await message.edit(content=reply_content, attachments=files)
+
+                # Forward the image to database if enabled
+                if settings.TO_DATABASE:
+                    # Database channel
+                    database_channel = bot.get_channel(settings.DATABASE_CHANNEL_ID)
+
+                    # Reopen the file for forwarding
+                    files = []
+                    file = File(file_path)
+                    files.append(File(original_file_path))
+                    files.append(file)
+
+                    # Additional info for the database (adding channel of interaction)
+                    interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+                    reply_content += f"\nChannel: {interaction_channel_link}"
+                    await database_channel.send(content=reply_content, files=files, allowed_mentions=AllowedMentions.none())
+
+                # Check if channel posted on is IMAGE_GEN_BOT_CHANNEL then add reaction
+                if interaction.channel.id == settings.IMAGE_GEN_BOT_CHANNEL:
+                    await message.add_reaction("🗑️")
+
+                return True
+            
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
+            if bundle_data['number_of_tries'] > 0:
+                reply_content = f"An error occurred while processing your request. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
+                await message.edit(content=reply_content)
+                bundle_data['number_of_tries'] -= 1
+                await asyncio.sleep(10)
+                await process_director_tools(bot, bundle_data)
+            else:
+                reply_content = f"An error occurred while processing your request. Please try again later."
+                await message.edit(content=reply_content)
+                return True

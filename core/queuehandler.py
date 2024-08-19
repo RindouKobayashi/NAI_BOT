@@ -13,7 +13,7 @@ import json
 import settings
 from asyncio import CancelledError
 from core.dict_annotation import BundleData
-from core.generation import process_txt2img
+from core.generation import process_txt2img, process_director_tools
 
 from core.nai_utils import image_to_base64
 
@@ -118,11 +118,11 @@ class NAIQueue:
 
 
     async def _process_item(self, bundle_data: BundleData):
-        interaction = bundle_data["interaction"]
-        message = bundle_data["message"]
-        params = bundle_data["params"]
-
-        success = await process_txt2img(self.bot, bundle_data)
+        type = bundle_data["type"]
+        if type == "txt2img":
+            success = await process_txt2img(self.bot, bundle_data)
+        elif type == "director_tools":
+            success = await process_director_tools(self.bot, bundle_data)
 
 
 

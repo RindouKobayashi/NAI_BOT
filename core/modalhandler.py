@@ -163,6 +163,7 @@ class RemixModal(Modal):
         try:
             await interaction.response.defer()
             new_data = da.deep_copy_bundle_data(self.bundle_data)
+            new_data["number_of_tries"] = 1
             if self.label in ["positive", "negative"]: # FOR STRING
                 new_data['checking_params'][self.label] = self.children[0].value
             elif self.label in ["width", "height", "steps", "seed"]: # FOR INT

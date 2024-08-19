@@ -82,58 +82,62 @@ class NAI(commands.Cog):
 
             await interaction.followup.send("Checking parameters...")
 
-            checking_params: da.Checking_Params = {
-                "positive": positive,
-                "negative": negative,
-                "width": width,
-                "height": height,
-                "steps": steps,
-                "cfg": cfg,
-                "sampler": sampler,
-                "smea": smea,
-                "seed": seed,
-                "model": model,
-                "quality_toggle": quality_toggle,
-                "undesired_content_presets": undesired_content_presets,
-                "prompt_conversion_toggle": prompt_conversion_toggle,
-                "upscale": upscale,
-                "vibe_transfer_switch": vibe_transfer_switch
-            }
+            checking_params: da.Checking_Params = da.create_with_defaults(
+                da.Checking_Params,
+                positive=positive,
+                negative=negative,
+                width=width,
+                height=height,
+                steps=steps,
+                cfg=cfg,
+                sampler=sampler,
+                smea=smea,
+                seed=seed,
+                model=model,
+                quality_toggle=quality_toggle,
+                undesired_content_presets=undesired_content_presets,
+                prompt_conversion_toggle=prompt_conversion_toggle,
+                upscale=upscale,
+                vibe_transfer_switch=vibe_transfer_switch
+            )
 
             checking_params = await check_params(checking_params, interaction)
 
-            # Unpack the parameters       
-            params: da.Params = {
-                "positive": checking_params["positive"],
-                "negative": checking_params["negative"],
-                "width": checking_params["width"],
-                "height": checking_params["height"],
-                "steps": checking_params["steps"],
-                "cfg": checking_params["cfg"],
-                "sampler": checking_params["sampler"],
-                "sm": checking_params["sm"],
-                "sm_dyn": checking_params["sm_dyn"],
-                "seed": checking_params["seed"],
-                "model": checking_params["model"],
-                "vibe_transfer_switch": checking_params["vibe_transfer_switch"],
-                "upscale": checking_params["upscale"],
-            }
+            # Unpack the parameters   
+
+            params: da.Params = da.create_with_defaults(
+                da.Params,
+                positive=checking_params["positive"],
+                negative=checking_params["negative"],
+                width=checking_params["width"],
+                height=checking_params["height"],
+                steps=checking_params["steps"],
+                cfg=checking_params["cfg"],
+                sampler=checking_params["sampler"],
+                sm=checking_params["sm"],
+                sm_dyn=checking_params["sm_dyn"],
+                seed=checking_params["seed"],
+                model=checking_params["model"],
+                vibe_transfer_switch=checking_params["vibe_transfer_switch"],
+                upscale=checking_params["upscale"],
+            )
 
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
 
             # Create a bundle_data that contains all the parameters
-            bundle_data: da.BundleData = {
-                "request_id": str(uuid.uuid4()),
-                "interaction": interaction,
-                "message": message,
-                "params": params,
-                "checking_params": checking_params,
-                "reference_message": None
-            }
+            bundle_data: da.BundleData = da.create_with_defaults(
+                da.BundleData,
+                type="txt2img",
+                request_id=str(uuid.uuid4()),
+                interaction=interaction,
+                message=message,
+                params=params,
+                checking_params=checking_params,
+            )
             
             # Add the request to the queue
-            
             success = await nai_queue.add_to_queue(bundle_data)
+            logger.info(bundle_data)
 
             if not success:
                 # The message has already been edited in the add_to_queue function
@@ -205,6 +209,68 @@ class NAI(commands.Cog):
         
         return valid_choices
     
+    @app_commands.command(name="director_tools", description="Use director tools (for image up to 832x1216px)")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.choices(
+        req_type=Nai_vars.director_tools.req_type_choice,
+        emotion=Nai_vars.director_tools.emotions_choice,
+        defry=Nai_vars.director_tools.defry_choice
+    )
+    @app_commands.describe(
+        req_type="Request type",
+        emotion="Emotion (only applicable to 'emotion' request type)",
+        defry="Defry (only applicable to 'colorize' and 'emotion' request type, default: 0)",
+        prompt="Optional prompt (only applicable to 'colorize' and 'emotion' request type)"
+    )
+    async def director_tools(self,
+                             interaction: discord.Interaction,
+                             req_type: app_commands.Choice[str],
+                             image: discord.Attachment,
+                             emotion: app_commands.Choice[str] = None,
+                             defry: app_commands.Choice[str] = None,
+                             prompt: str = ""
+                             ):
+        logger.info(f"COMMAND 'DIRECTOR_TOOLS' USED BY: {interaction.user} ({interaction.user.id})")
+        await interaction.response.defer()
+        try:
+            # Check if the attachment is an image
+            await interaction.followup.send("Checking parameters...")
+            if not image.filename.lower().endswith((".png", ".jpg", ".jpeg", "webp")):
+                raise ValueError("Only `PNG`, `JPG`, `JPEG`, and `WebP` files are suppored.")
+            
+            # Check if image is smaller than 832x1216
+            if image.height * image.width > 832 * 1216:
+                raise ValueError(f"Image must be smaller than `{832*1216}`px (`832`x`1216`px).")
+            
+            message = await interaction.edit_original_response(content="Adding your request to the queue...")
+            
+            # Create a bundle_data that contains the image and the request type
+            bundle_data: da.BundleData = da.create_with_defaults(
+                da.BundleData,
+                type = "director_tools",
+                request_id = str(uuid.uuid4()),
+                interaction = interaction,
+                message = message,
+                director_tools_params = {
+                    "width": image.width,
+                    "height": image.height,
+                    "image": image,
+                    "req_type": req_type.value,
+                    "prompt": prompt,
+                    "defry": int(defry.value) if defry else 0,
+                    "emotion": emotion.value if emotion else None
+                }
+            )
+            
+            # Add the request to the queue
+            success = await nai_queue.add_to_queue(bundle_data)
+
+            if not success:
+                return
+            
+        except Exception as e:
+            logger.error(f"Error processing 'DIRECTOR_TOOLS' command: {str(e)}")
+            
 
     @app_commands.command(name="vibe_transfer", description="Store reference images for vibe transfer with info and strength value")
     @app_commands.allowed_installs(guilds=True, users=True)
@@ -262,7 +328,7 @@ class NAI(commands.Cog):
             # Check all attachments are valid images
             for attachment in images:
                 if attachment is not None and not attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-                    raise ValueError("Only PNG, JPG, JPEG and WebP images are supported.")
+                    raise ValueError("Only `PNG`, `JPG`, `JPEG` and `WebP` images are supported.")
 
             # Create a json file named their user ID storing in database
             user_id = str(interaction.user.id)
