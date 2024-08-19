@@ -203,7 +203,7 @@ class RemixView(View):
         logger.info(f"reSeed button pressed by {interaction.user.name} ({interaction.user.id})")
         await interaction.response.defer()
         #button.custom_id = self.bundle_data["request_id"]
-        new_data: da.BundleData = self.bundle_data.copy()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
         new_data["checking_params"]["seed"] = random.randint(0, 9999999999)
         new_data["params"]["seed"] = new_data["checking_params"]["seed"]
         new_data["request_id"] = str(uuid.uuid4())
