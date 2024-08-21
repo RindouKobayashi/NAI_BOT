@@ -82,6 +82,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     "cfg_rescale": 0,
                     "noise_schedule": "native",
                     "legacy": False,
+                    "dynamic_thresholding": bundle_data['params']['dynamic_thresholding'],
                 }
 
                 if bundle_data['params']['vibe_transfer_switch']:

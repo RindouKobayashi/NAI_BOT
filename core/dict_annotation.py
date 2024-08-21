@@ -19,6 +19,7 @@ class Checking_Params(TypedDict, total=False):
     undesired_content_presets: app_commands.Choice[str]
     prompt_conversion_toggle: bool
     upscale: bool
+    dynamic_thresholding: bool
     vibe_transfer_switch: bool
 
 class Params(TypedDict, total=False):
@@ -33,6 +34,7 @@ class Params(TypedDict, total=False):
     seed: int
     model: str
     upscale: bool
+    dynamic_thresholding: bool
     vibe_transfer_switch: bool
 
 class Director_Tools_Params(TypedDict, total=False):

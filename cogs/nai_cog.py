@@ -56,6 +56,7 @@ class NAI(commands.Cog):
         undesired_content_presets="Undesired content presets (default: Heavy)",
         prompt_conversion_toggle="Convert Auto1111 way of prompt to NovelAI way of prompt (default: False)",
         upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
+        decrisper="Basically dynamic thresholding (default: False)",
         vibe_transfer_switch="Vibe transfer switch (default: False)",
     )
     async def nai(self, interaction: discord.Interaction, 
@@ -73,6 +74,7 @@ class NAI(commands.Cog):
                   undesired_content_presets: app_commands.Choice[str] = "heavy",
                   prompt_conversion_toggle: bool = False,
                   upscale: bool = False,
+                  decrisper: bool = False,
                   vibe_transfer_switch: bool = False,
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
@@ -98,6 +100,7 @@ class NAI(commands.Cog):
                 undesired_content_presets=undesired_content_presets,
                 prompt_conversion_toggle=prompt_conversion_toggle,
                 upscale=upscale,
+                dynamic_thresholding=decrisper,
                 vibe_transfer_switch=vibe_transfer_switch
             )
 
@@ -119,6 +122,7 @@ class NAI(commands.Cog):
                 seed=checking_params["seed"],
                 model=checking_params["model"],
                 vibe_transfer_switch=checking_params["vibe_transfer_switch"],
+                dynamic_thresholding=checking_params["dynamic_thresholding"],
                 upscale=checking_params["upscale"],
             )
 
@@ -208,7 +212,7 @@ class NAI(commands.Cog):
         
         return valid_choices
     
-    @app_commands.command(name="director_tools", description="Use director tools (for image up to 832x1216px)")
+    @app_commands.command(name="director_tools", description="Use director tools (for image up to 1024x1024)")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.choices(
         req_type=Nai_vars.director_tools.req_type_choice,
@@ -237,9 +241,9 @@ class NAI(commands.Cog):
             if not image.filename.lower().endswith((".png", ".jpg", ".jpeg", "webp")):
                 raise ValueError("Only `PNG`, `JPG`, `JPEG`, and `WebP` files are suppored.")
             
-            # Check if image is smaller than 832x1216
-            if image.height * image.width > 832 * 1216:
-                raise ValueError(f"Image must be smaller than `{832*1216}`px (`832`x`1216`px).")
+            # Check if image is smaller than 1024x1024
+            if image.height * image.width > 1024 * 1024:
+                raise ValueError(f"Image must be smaller than `{1024*1024}`px (`1024`x`1024`px).")
             
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
             

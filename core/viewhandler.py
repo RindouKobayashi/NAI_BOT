@@ -340,7 +340,10 @@ class TrueFalseMenu(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
         new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
-        new_data["checking_params"][self.name] = self.values[0]
+        if self.name == "decrisper":
+            new_data["checking_params"]["dynamic_thresholding"] = self.values[0]
+        else:
+            new_data["checking_params"][self.name] = self.values[0]
         Globals.select_views_generation_data[new_data["request_id"]] = new_data
         message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
         await message.delete(delay=1)
@@ -508,6 +511,10 @@ class SelectMenu(discord.ui.Select):
                 description="Upscale image by 4x. Only available for images up to 640x640",
             ),
             discord.SelectOption(
+                label="decrisper",
+                description="Basically dynamic thresholding",
+            ),
+            discord.SelectOption(
                 label="vibe_transfer_switch",
                 description="Vibe transfer switch",
             ),
@@ -530,7 +537,7 @@ class SelectMenu(discord.ui.Select):
                 await interaction.response.send_message(view=SMEAMenuView(self.bundle_data), ephemeral=True)
             elif self.values[0] == "model":
                 await interaction.response.send_message(view=ModelMenuView(self.bundle_data), ephemeral=True)
-            elif self.values[0] in ["quality_toggle", "prompt_conversion_toggle", "upscale", "vibe_transfer_switch"]:
+            elif self.values[0] in ["quality_toggle", "prompt_conversion_toggle", "upscale", "vibe_transfer_switch", "decrisper"]:
                 await interaction.response.send_message(view=TrueFalseMenuView(self.bundle_data, name=self.values[0]), ephemeral=True)
             elif self.values[0] == "undesired_content_presets":
                 await interaction.response.send_message(view=UndesiredContentMenuView(self.bundle_data), ephemeral=True)
