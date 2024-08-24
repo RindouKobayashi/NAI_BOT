@@ -169,9 +169,12 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     file = File(file_path)
                     files = [file]
 
-                    # Additional info for the database (adding channel of interaction)
-                    interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
-                    reply_content += f"\nChannel: {interaction_channel_link}"
+                    # Additional info for the database (adding channel of interaction if it's not dm)
+                    if interaction.guild is None:
+                        reply_content += f"\nChannel: {interaction.channel.mention}"
+                    else:
+                        interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+                        reply_content += f"\nChannel: {interaction_channel_link}"
                     await database_channel.send(content=reply_content, files=files, allowed_mentions=AllowedMentions.none())
 
                 # Check if channel posted on is 1157817614245052446 then add reaction
