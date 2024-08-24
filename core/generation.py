@@ -171,7 +171,8 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
 
                     # Additional info for the database (adding channel of interaction if it's not dm)
                     if interaction.guild is None:
-                        reply_content += f"\nChannel: {interaction.channel.mention}"
+                        # DM
+                        reply_content += f"\nChannel: {interaction.user.mention}'s DM"
                     else:
                         interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
                         reply_content += f"\nChannel: {interaction_channel_link}"
