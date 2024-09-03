@@ -12,6 +12,7 @@ from discord import Interaction, Message, File, AllowedMentions
 from discord.ext import commands
 import core.dict_annotation as da
 from core.viewhandler import RemixView
+from core.wd_tagger import predict
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
@@ -153,34 +154,72 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 reply_content = f"Seed: `{bundle_data['params']['seed']}` | Elapsed time: `{elapsed_time}s`"
                 reply_content += f"\nBy: {interaction.user.mention}"
 
-                # Send the image
+                # Prepare the image as a file
                 files = []
                 file_path = f"{output_dir}/{file_path}"
                 file = File(file_path)
                 files.append(file)
-                await message.edit(content=reply_content, attachments=files)
 
+                # Forward the image to database if enabled
+                # Database channel
+                database_channel = bot.get_channel(settings.DATABASE_CHANNEL_ID)
+                reply_content_db = reply_content
+
+                # Additional info for the database (adding channel of interaction if it's not dm)
+                if interaction.guild is None:
+                    # DM
+                    # Copy reply_content to reply_content_db
+                    reply_content_db += f"\nChannel: {interaction.user.mention}'s DM"
+                else:
+                    interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+                    reply_content_db += f"\nChannel: {interaction_channel_link}"
+                if settings.TO_DATABASE:
+                    database_message = await database_channel.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none())
+                else:
+                    # Meaning testing, so delete message after 20 seconds
+                    database_message = await database_channel.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none(), delete_after=20)
+
+                # Get image url from message
+                attachment = database_message.attachments[0]
+                if attachment is not None:
+                    image_url = attachment.url
+
+                # Reopen the file for actual posting
+                file = File(file_path)
+                files = [file]
+
+                if interaction.guild_id == settings.ANIMEAI_SERVER: # If bot is in animeai server
+                    if interaction.channel_id == settings.SFW_IMAGE_GEN_BOT_CHANNEL: # If channel is image gen bot channel (sfw)
+                        warning_message = f"<a:neuroKuru:1279864980795035783> Classifying image <a:neuroKuru:1279864980795035783>"
+                        warning_message += f"\n-# If image is classified as NSFW, it will be forwarded to the NSFW channel"
+                        warning_message += f"\n-# Want to skip classification? Use bot in {bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL).mention}"
+                        message = await message.edit(content=warning_message)
+                        # Call predict function (TESTING)
+                        confidence_levels, highest_confidence_level, is_nsfw = predict(image_url)
+                        #for label, confidence in confidence_levels.items():
+                        #    reply_content += f"\n{label}: {confidence:.2f}"
+                        #reply_content += f"\n{confidence_levels}\n{highest_confidence_level}"
+
+                        if is_nsfw:
+                            channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL) # Channel for image gen bot channel (nsfw)
+                            forward_message = await channel.send(content=f"{reply_content}\n[View Request]({message.jump_url})", files=files, allowed_mentions=AllowedMentions.none())
+                            # Edit message to include a link to the forwarded message
+                            reply_content += f"\nForwarded to {channel.mention} due to `NSFW` content"
+                            reply_content += f"\n[View Forwarded Message]({forward_message.jump_url})"
+                            await message.edit(content=reply_content)
+                            bundle_data['message'] = forward_message
+                        else:
+                            await message.edit(content=reply_content, attachments=files)
+
+                    else:
+                        await message.edit(content=reply_content, attachments=files)
+
+                else:
+                    message = await message.edit(content=reply_content, attachments=files)
+                
                 # Prepare RemixView
                 settings.Globals.remix_views[request_id] = RemixView(bundle_data)
                 await settings.Globals.remix_views[request_id].send()
-
-                # Forward the image to database if enabled
-                if settings.TO_DATABASE:
-                    # Database channel
-                    database_channel = bot.get_channel(settings.DATABASE_CHANNEL_ID)
-
-                    # Reopen the file for forwarding
-                    file = File(file_path)
-                    files = [file]
-
-                    # Additional info for the database (adding channel of interaction if it's not dm)
-                    if interaction.guild is None:
-                        # DM
-                        reply_content += f"\nChannel: {interaction.user.mention}'s DM"
-                    else:
-                        interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
-                        reply_content += f"\nChannel: {interaction_channel_link}"
-                    await database_channel.send(content=reply_content, files=files, allowed_mentions=AllowedMentions.none())
 
                 # Check if channel posted on is 1157817614245052446 then add reaction
                 if interaction.channel.id == 1157817614245052446:

@@ -15,8 +15,8 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
             ### Check if command used in server ANIMEAI_SERVER
             if interaction.guild_id == settings.ANIMEAI_SERVER:
                 # Check if command used in channel IMAGE_GEN_BOT_CHANNEL
-                if interaction.channel_id != settings.IMAGE_GEN_BOT_CHANNEL:
-                    raise ValueError(f"`Command can only be used in `<#{settings.IMAGE_GEN_BOT_CHANNEL}>")
+                if interaction.channel_id != settings.IMAGE_GEN_BOT_CHANNEL and interaction.channel_id != settings.SFW_IMAGE_GEN_BOT_CHANNEL:
+                    raise ValueError(f"`Command can only be used in `<#{settings.SFW_IMAGE_GEN_BOT_CHANNEL}> or <#{settings.IMAGE_GEN_BOT_CHANNEL}>")
                 
             ### Process model
             if checking_params["model"] not in Nai_vars.models:

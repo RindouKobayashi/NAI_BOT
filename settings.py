@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from logging.config import dictConfig
 
 load_dotenv()
+
 branch = os.getenv("GITHUB_BRANCH", 'main')
 if branch == 'dev':
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
@@ -22,6 +23,9 @@ NAI_EMAIL = os.getenv("NAI_EMAIL")
 NAI_PASSWORD = os.getenv("NAI_PASSWORD")
 NAI_API_TOKEN = os.getenv("NAI_API_TOKEN")
 
+HUGGING_FACE_TOKEN = os.getenv("HUGGING_FACE_TOKEN")
+WD_TAGGER_URL = "SmolRabbit/wd-tagger"
+
 BASE_DIR = pathlib.Path(__file__).parent
 COGS_DIR = BASE_DIR / "cogs"
 DATABASE_DIR = BASE_DIR / "database"
@@ -31,6 +35,7 @@ CHANNEL_ID_TEST = 1188501454806339685
 SERVER_ID_TEST = 1157816835975151706
 
 IMAGE_GEN_BOT_CHANNEL = 1261084844230705182
+SFW_IMAGE_GEN_BOT_CHANNEL = 1280389884745482313
 ANIMEAI_SERVER = 1024739383124963429
 
 DATABASE_CHANNEL_ID = 1268976168233599117
