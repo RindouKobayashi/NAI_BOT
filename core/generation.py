@@ -202,7 +202,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
 
                         if is_nsfw:
                             channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL) # Channel for image gen bot channel (nsfw)
-                            forward_message = await channel.send(content=f"{reply_content}\n[View Request]({message.jump_url})", files=files, allowed_mentions=AllowedMentions.none())
+                            forward_message = await channel.send(content=f"{reply_content}\n[View Request]({message.jump_url})", files=files)
                             # Edit message to include a link to the forwarded message
                             reply_content += f"\nForwarded to {channel.mention} due to `NSFW` content"
                             reply_content += f"\n[View Forwarded Message]({forward_message.jump_url})"
