@@ -19,7 +19,7 @@ class REACTION(commands.Cog):
         if payload.emoji.name == "🗑️":
             
             # Check if it's in the correct channel (replace with your actual channel ID)
-            if payload.channel_id != settings.IMAGE_GEN_BOT_CHANNEL and payload.channel_id != settings.SFW_IMAGE_GEN_BOT_CHANNEL:
+            if payload.channel_id not in [settings.IMAGE_GEN_BOT_CHANNEL, settings.SFW_IMAGE_GEN_BOT_CHANNEL]:
                 return
             # Get payload.message
             message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
