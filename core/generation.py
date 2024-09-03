@@ -24,13 +24,13 @@ class NovelAIAPI:
         async with session.post(f"{NovelAIAPI.BASE_URL}/ai/generate-image", json=data, headers=headers) as response:
             try:
                 response.raise_for_status()
-                return await response.read()
+                logger.info(f"NovelAI API response: {response.status}")
+                return await response.read(), response.status
             except aiohttp.ClientResponseError as e:
                 if e.status == 429:
                     # Try again in 10 seconds
                     logger.error("NovelAI API rate limit exceeded. (429)")
-                    return None
-                    raise Exception(f"NovelAI API rate limit exceeded. (429)")
+                    return None, e.status
                 else:
                     raise
 
@@ -58,7 +58,7 @@ class NovelAIAPI:
             return await response.read()
 
 async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
-    bundle_data['number_of_tries'] = bundle_data['number_of_tries']
+    bundle_data['number_of_tries'] -= 1
     while bundle_data['number_of_tries'] >= 0:
         try:
             async with aiohttp.ClientSession() as session:
@@ -107,7 +107,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 start_time = datetime.now()
 
                 # Call the NovelAI API
-                zipped_bytes = await NovelAIAPI.generate_image(
+                zipped_bytes, status = await NovelAIAPI.generate_image(
                     session,
                     NAI_API_TOKEN,
                     bundle_data['params']['positive'],
@@ -115,6 +115,10 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     "generate",
                     parameters=nai_params
                 )
+                # Check the status
+                if status != 200:
+                    # Raise an exception if the status is not 200
+                    raise Exception(f"NovelAI API returned status code {status}")
 
                 # Process the response
                 zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
@@ -193,15 +197,15 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
             if bundle_data['number_of_tries'] > 0:
                 reply_content = f"An error occurred while processing your request. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
-                bundle_data['number_of_tries'] -= 1
                 await asyncio.sleep(10)
-                await process_txt2img(bot, bundle_data)
+                #await process_txt2img(bot, bundle_data)
             else:
                 reply_content = f"An error occurred while processing your request. Please try again later."
                 await message.edit(content=reply_content)
-                return True
+                return False
 
 async def process_director_tools(bot: commands.Bot, bundle_data: da.BundleData):
+    bundle_data['number_of_tries'] -= 1
     while bundle_data['number_of_tries'] >= 0:
         try:
             async with aiohttp.ClientSession() as session:
@@ -287,7 +291,6 @@ async def process_director_tools(bot: commands.Bot, bundle_data: da.BundleData):
             if bundle_data['number_of_tries'] > 0:
                 reply_content = f"An error occurred while processing your request. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
-                bundle_data['number_of_tries'] -= 1
                 await asyncio.sleep(10)
                 await process_director_tools(bot, bundle_data)
             else:

@@ -208,7 +208,7 @@ class RemixView(View):
         new_data["params"]["seed"] = new_data["checking_params"]["seed"]
         new_data["request_id"] = str(uuid.uuid4())
         new_data["interaction"] = interaction
-        new_data["number_of_tries"] = 1
+        new_data["number_of_tries"] = 2
         new_data["message"] = await interaction.followup.send("♻️ Seeding ♻️")
         from core.queuehandler import nai_queue
         from core.queuehandler import NAIQueue

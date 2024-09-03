@@ -56,7 +56,7 @@ class BundleData(TypedDict, total=False):
     position: int = None
     reference_message: discord.Message = None
     director_tools_params: Director_Tools_Params = None
-    number_of_tries: int = 1
+    number_of_tries: int = 2
 
 def create_with_defaults(typed_dict_class: Dict[str, Any], **kwargs) -> Dict[str, Any]:
     # Initialize with None for all fields based on the TypedDict annotations
