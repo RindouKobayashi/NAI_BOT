@@ -60,9 +60,9 @@ class NovelAIAPI:
             return await response.read()
 
 async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
-    bundle_data['number_of_tries'] -= 1
-    while bundle_data['number_of_tries'] >= 0:
+    while bundle_data['number_of_tries'] >= 1:
         try:
+            bundle_data['number_of_tries'] -= 1
             async with aiohttp.ClientSession() as session:
 
                 request_id = bundle_data['request_id']
@@ -245,9 +245,9 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 return False
 
 async def process_director_tools(bot: commands.Bot, bundle_data: da.BundleData):
-    bundle_data['number_of_tries'] -= 1
-    while bundle_data['number_of_tries'] >= 0:
+    while bundle_data['number_of_tries'] >= 1:
         try:
+            bundle_data['number_of_tries'] -= 1
             async with aiohttp.ClientSession() as session:
                 if bundle_data["director_tools_params"]["req_type"] == "emotion":
                     bundle_data["director_tools_params"]["prompt"] = f"{bundle_data['director_tools_params']['emotion']};;{bundle_data['director_tools_params']['prompt']}"
