@@ -33,7 +33,8 @@ class NovelAIAPI:
                     logger.error("NovelAI API rate limit exceeded. (429)")
                     return None, e.status
                 else:
-                    raise
+                    logger.error(f"NovelAI API error: {e}")
+                    return None, e.status
 
     @staticmethod
     async def director_tools(session, access_token, width, height, image, req_type, prompt: str = "", defry: int = 0):
