@@ -164,6 +164,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 # Forward the image to database if enabled
                 # Database channel
                 database_channel = bot.get_channel(settings.DATABASE_CHANNEL_ID)
+                database_channel_2 = bot.get_channel(settings.DATABASE_CHANNEL_2_ID)
                 reply_content_db = reply_content
 
                 # Additional info for the database (adding channel of interaction if it's not dm)
@@ -179,6 +180,11 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 else:
                     # Meaning testing, so delete message after 20 seconds
                     database_message = await database_channel.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none(), delete_after=20)
+                # Forward to database 2
+                # Reopen the file for actual posting
+                file = File(file_path)
+                files = [file]
+                await database_channel_2.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none())
 
                 # Get image url from message
                 attachment = database_message.attachments[0]
