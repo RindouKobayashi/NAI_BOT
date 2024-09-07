@@ -63,6 +63,10 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
             if checking_params["sampler"] not in Nai_vars.samplers:
                 checking_params["sampler"] = checking_params["sampler"].value
 
+            ### Process noise schedule
+            if checking_params["noise_schedule"] not in Nai_vars.noise_schedule:
+                checking_params["noise_schedule"] = checking_params["noise_schedule"].value
+
             ### Process smea
             if checking_params["smea"] not in ["SMEA", "SMEA+DYN", "None"]:
                 checking_params["smea"] = checking_params["smea"].value

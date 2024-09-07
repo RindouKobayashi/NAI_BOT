@@ -389,41 +389,37 @@ class UndesiredContentMenuView(View):
     async def on_timeout(self):
         self.stop()
 
+class NoiseScheduleMenu(discord.ui.Select):
+    def __init__(self, bundle_data: da.BundleData):
+        self.bundle_data = bundle_data
+        options = Nai_vars.noise_schedule_options
+        super().__init__(placeholder="Select noise schedule", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        new_data["checking_params"]["noise_schedule"] = self.values[0]
+        Globals.select_views_generation_data[new_data["request_id"]] = new_data
+        message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
+        await message.delete(delay=1)
+
+class NoiseScheduleMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=120)
+        self.bundle_data = bundle_data
+        self.add_item(NoiseScheduleMenu(self.bundle_data))
+
+    async def send(self):
+        message = self.bundle_data["message"]
+        await message.edit(view=self)
+
+    async def on_timeout(self):
+        self.stop()
+
 class SamplerMenu(discord.ui.Select):
     def __init__(self, bundle_data: da.BundleData):
         self.bundle_data = bundle_data
-        options = [
-            discord.SelectOption(
-                label="k_euler",
-                value="k_euler",
-                description="k_euler",
-            ),
-            discord.SelectOption(
-                label="k_euler_ancestral",
-                value="k_euler_ancestral",
-                description="k_euler_ancestral",
-            ),
-            discord.SelectOption(
-                label="k_dpmpp_2s_ancestral",
-                value="k_dpmpp_2s_ancestral",
-                description="k_dpmpp_2s_ancestral",
-            ),
-            discord.SelectOption(
-                label="k_dpmpp_2m",
-                value="k_dpmpp_2m",
-                description="k_dpmpp_2m",
-            ),
-            discord.SelectOption(
-                label="k_dpmpp_sde",
-                value="k_dpmpp_sde",
-                description="k_dpmpp_sde",
-            ),
-            discord.SelectOption(
-                label="ddim",
-                value="ddim",
-                description="ddim",
-            ),
-        ]
+        options = Nai_vars.samplers_options
         super().__init__(placeholder="Select Sampler", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
@@ -483,6 +479,10 @@ class SelectMenu(discord.ui.Select):
                 description="Sampling method",
             ),
             discord.SelectOption(
+                label="noise_schdule",
+                description="Noise schedule",
+            ),
+            discord.SelectOption(
                 label="smea",
                 description="SMEA and SMEA+DYN versions of samplers perform better at high res",
             ),
@@ -533,6 +533,8 @@ class SelectMenu(discord.ui.Select):
                 await interaction.response.send_modal(remix_modal)
             elif self.values[0] == "sampler":
                 await interaction.response.send_message(view=SamplerMenuView(self.bundle_data), ephemeral=True)
+            elif self.values[0] == "noise_schdule":
+                await interaction.response.send_message(view=NoiseScheduleMenuView(self.bundle_data), ephemeral=True)
             elif self.values[0] == "smea":
                 await interaction.response.send_message(view=SMEAMenuView(self.bundle_data), ephemeral=True)
             elif self.values[0] == "model":
@@ -579,6 +581,7 @@ class SelectMenuView(View):
                     steps=checking_params["steps"],
                     cfg=checking_params["cfg"],
                     sampler=checking_params["sampler"],
+                    noise_schedule=checking_params["noise_schedule"],
                     sm=checking_params["sm"],
                     sm_dyn=checking_params["sm_dyn"],
                     seed=checking_params["seed"],

@@ -37,6 +37,7 @@ class NAI(commands.Cog):
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.choices(
         sampler=Nai_vars.samplers_choices,
+        noise_schedule=Nai_vars.noise_schedule_choices,
         model=Nai_vars.models_choices,
         undesired_content_presets=Nai_vars.undesired_content_presets.presets_choices,
         smea=Nai_vars.smea_choices
@@ -49,6 +50,7 @@ class NAI(commands.Cog):
         steps=f"Number of steps (default: {Nai_vars.steps.default})",
         cfg="CFG scale (default: 5.0)",
         sampler="Sampling method (default: k_euler)",
+        noise_schedule="Noise schedule (default: native)",
         smea="SMEA and SMEA+DYN versions of samplers perform better at high res (default: None)",
         seed="Seed for generation (default: 0, random)",
         model="Model to use (default: nai-diffusion-3)",
@@ -67,6 +69,7 @@ class NAI(commands.Cog):
                   steps: int = Nai_vars.steps.default, 
                   cfg: float = Nai_vars.cfg.default, 
                   sampler: app_commands.Choice[str] = "k_euler", 
+                  noise_schedule: app_commands.Choice[str] = "native",
                   smea: app_commands.Choice[str] = "None",
                   seed: int = 0,
                   model: app_commands.Choice[str] = "nai-diffusion-3",
@@ -93,6 +96,7 @@ class NAI(commands.Cog):
                 steps=steps,
                 cfg=cfg,
                 sampler=sampler,
+                noise_schedule=noise_schedule,
                 smea=smea,
                 seed=seed,
                 model=model,
@@ -117,6 +121,7 @@ class NAI(commands.Cog):
                 steps=checking_params["steps"],
                 cfg=checking_params["cfg"],
                 sampler=checking_params["sampler"],
+                noise_schedule=checking_params["noise_schedule"],
                 sm=checking_params["sm"],
                 sm_dyn=checking_params["sm_dyn"],
                 seed=checking_params["seed"],

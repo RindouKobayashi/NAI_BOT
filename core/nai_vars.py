@@ -7,10 +7,15 @@ class Nai_vars:
     models = ["nai-diffusion", "nai-diffusion-2", "nai-diffusion-3", "safe-diffusion", "nai-diffusion-furry", "nai-diffusion-furry-3"]
     models_choices = [app_commands.Choice(name=name, value=name) for name in models]
     models_select_options = [discord.SelectOption(label=name, description=name) for name in models]
-    samplers = ["k_euler", "k_euler_ancestral", "k_dpmpp_2s_ancestral", "k_dpmpp_2m", "k_dpmpp_sde", "ddim"]
+    samplers = ["k_euler", "k_euler_ancestral", "k_dpmpp_2s_ancestral", "k_dpmpp_2m", "k_dpmpp_sde", "k_dpmpp_2m_sde", "ddim_v3"]
     samplers_choices = [app_commands.Choice(name=name, value=name) for name in samplers]
+    samplers_options = [discord.SelectOption(label=name, value=name, description=name) for name in samplers]
     smea = ["SMEA", "SMEA+DYN", "None"]
+    noise_schedule = ["native", "karras", "exponential", "polyexponential"]
+    noise_schedule_choices = [app_commands.Choice(name=name, value=name) for name in noise_schedule]
+    noise_schedule_options = [discord.SelectOption(label=name, value=name, description=name) for name in noise_schedule]
     smea_choices = [app_commands.Choice(name=name, value=name) for name in smea]
+
     upscale_limit_pixels = 640*640
 
     class width():

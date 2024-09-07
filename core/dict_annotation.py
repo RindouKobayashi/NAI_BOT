@@ -12,6 +12,7 @@ class Checking_Params(TypedDict, total=False):
     steps: int
     cfg: float
     sampler: Union[app_commands.Choice[str], str]
+    noise_schedule: Union[app_commands.Choice[str], str]
     smea: Union[app_commands.Choice[str], str]
     seed: int
     model: app_commands.Choice[str]
@@ -29,6 +30,7 @@ class Params(TypedDict, total=False):
     steps: int
     cfg: float
     sampler: str
+    noise_schedule: str
     sm: bool
     sm_dyn: bool
     seed: int
