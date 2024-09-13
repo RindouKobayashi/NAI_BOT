@@ -224,6 +224,8 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
 
                     else:
                         await message.edit(content=reply_content, attachments=files)
+                        # Add reaction to message
+                        await message.add_reaction("🗑️")
 
                 else:
                     message = await message.edit(content=reply_content, attachments=files)
