@@ -217,15 +217,18 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                             bundle_data['message'] = forward_message
                             # Add reaction to forward message
                             await forward_message.add_reaction("🗑️")
+                            await forward_message.add_reaction("🔎")
                         else:
                             message = await message.edit(content=reply_content, attachments=files)
                             # Add reaction to message
                             await message.add_reaction("🗑️")
+                            await message.add_reaction("🔎")
 
                     else:
                         await message.edit(content=reply_content, attachments=files)
                         # Add reaction to message
                         await message.add_reaction("🗑️")
+                        await message.add_reaction("🔎")
 
                 else:
                     message = await message.edit(content=reply_content, attachments=files)
@@ -237,6 +240,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 # Check if channel posted on is 1157817614245052446 then add reaction
                 if interaction.channel.id == 1157817614245052446:
                     await message.add_reaction("🔎")
+                    await message.add_reaction("🗑️")
                 
                 return True
 
