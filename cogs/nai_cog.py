@@ -59,6 +59,7 @@ class NAI(commands.Cog):
         prompt_conversion_toggle="Convert Auto1111 way of prompt to NovelAI way of prompt (default: False)",
         upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
         decrisper="Basically dynamic thresholding (default: False)",
+        variety_plus="Enable guidance only after body been formed, improved diversity, saturation of samples. (default: False)",
         vibe_transfer_switch="Vibe transfer switch (default: False)",
     )
     async def nai(self, interaction: discord.Interaction, 
@@ -78,6 +79,7 @@ class NAI(commands.Cog):
                   prompt_conversion_toggle: bool = False,
                   upscale: bool = False,
                   decrisper: bool = False,
+                  variety_plus: bool = False,
                   vibe_transfer_switch: bool = False,
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
@@ -105,6 +107,7 @@ class NAI(commands.Cog):
                 prompt_conversion_toggle=prompt_conversion_toggle,
                 upscale=upscale,
                 dynamic_thresholding=decrisper,
+                skip_cfg_above_sigma=variety_plus,
                 vibe_transfer_switch=vibe_transfer_switch
             )
 
@@ -128,6 +131,7 @@ class NAI(commands.Cog):
                 model=checking_params["model"],
                 vibe_transfer_switch=checking_params["vibe_transfer_switch"],
                 dynamic_thresholding=checking_params["dynamic_thresholding"],
+                skip_cfg_above_sigma=checking_params["skip_cfg_above_sigma"],
                 upscale=checking_params["upscale"],
             )
 

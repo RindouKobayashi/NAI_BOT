@@ -587,6 +587,8 @@ class SelectMenuView(View):
                     seed=checking_params["seed"],
                     model=checking_params["model"],
                     vibe_transfer_switch=checking_params["vibe_transfer_switch"],
+                    dynamic_thresholding=checking_params["dynamic_thresholding"],
+                    skip_cfg_above_sigma=checking_params["skip_cfg_above_sigma"],
                     upscale=checking_params["upscale"],
                 )
                 bundle_data: da.BundleData = da.create_with_defaults(

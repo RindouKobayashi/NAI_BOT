@@ -21,6 +21,7 @@ class Checking_Params(TypedDict, total=False):
     prompt_conversion_toggle: bool
     upscale: bool
     dynamic_thresholding: bool
+    skip_cfg_above_sigma: Union[bool, float]
     vibe_transfer_switch: bool
 
 class Params(TypedDict, total=False):
@@ -37,6 +38,7 @@ class Params(TypedDict, total=False):
     model: str
     upscale: bool
     dynamic_thresholding: bool
+    skip_cfg_above_sigma: float
     vibe_transfer_switch: bool
 
 class Director_Tools_Params(TypedDict, total=False):

@@ -3,6 +3,7 @@ import io
 import re
 import numpy as np
 from PIL import Image, ImageOps
+import math
 #import torch
 
 def prompt_to_nai(prompt, weight_per_brace=0.05):
@@ -99,3 +100,22 @@ def naimask_to_base64(image):
     image_bytesIO = io.BytesIO()
     img.save(image_bytesIO, format="png")
     return base64.b64encode(image_bytesIO.getvalue()).decode()
+
+def calculate_skip_cfg_above_sigma(initial_value, width, height) -> float:
+    def Ne(e, t):
+        i, s = e
+        return [math.floor(i / t), math.floor(s / t)]
+
+    def je(e):
+        return e[0] * e[1] * e[2]
+
+    ze = je([4, math.floor(104), math.floor(152)])  # Constant value as before
+
+    # Calculate the new dimensions
+    c = Ne([width, height], 8)
+    
+    # Calculate the new value
+    l = math.pow(je([4] + list(c)) / ze, 0.5)
+    
+    # Update and return the new skip_cfg_above_sigma value
+    return initial_value * l

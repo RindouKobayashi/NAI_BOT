@@ -3,7 +3,7 @@ import random
 from settings import logger
 import discord
 from discord import app_commands
-from core.nai_utils import calculate_resolution, prompt_to_nai
+from core.nai_utils import calculate_resolution, prompt_to_nai, calculate_skip_cfg_above_sigma
 from core.dict_annotation import Checking_Params
 from core.nai_vars import Nai_vars
 
@@ -79,6 +79,14 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
             else:
                 checking_params["sm"] = False
                 checking_params["sm_dyn"] = False
+
+            ### Process variety plus
+            if checking_params["skip_cfg_above_sigma"] == True:
+                # Call function calculate_skip_cfg_above_sigma
+                width = checking_params["width"]
+                height = checking_params["height"]
+                skip_cfg_above_sigma = calculate_skip_cfg_above_sigma(19, width, height)
+                checking_params["skip_cfg_above_sigma"] = skip_cfg_above_sigma
 
             ### Process prompt and negative prompt with function prompt_to_nai if prompt_conversion_toggle is True
             if checking_params["prompt_conversion_toggle"]:
