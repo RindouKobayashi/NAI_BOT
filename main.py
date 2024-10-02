@@ -4,6 +4,7 @@ import asyncio
 from discord.ext import commands
 from settings import logger
 import core.queuehandler as queuehandler
+from contextmenu import image_contextmenu
 
 from core.viewhandler import RemixView
 
@@ -29,6 +30,9 @@ async def on_ready():
     for cof_file in settings.COGS_DIR.glob("*cog.py"):
         if cof_file.name != "__init__.py":
             await bot.load_extension(f"cogs.{cof_file.name[:-3]}")
+
+    # load contextmenu
+    image_contextmenu.contextmenu(bot)
 
     # Change presence 
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
