@@ -83,10 +83,15 @@ class NAI(commands.Cog):
                   vibe_transfer_switch: bool = False,
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
-        await interaction.response.defer()
 
         try:
-
+            if interaction.guild_id not in settings.SERVER_WHITELIST and interaction.guild is not None:
+                response = f"This command is not available in this server, contact <@125331697867816961> to request whitelist."
+                response += f"\n-# This is done because people were using this command in server with NAI staff."
+                await interaction.response.send_message(response, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                return
+            await interaction.response.defer()
+            
             await interaction.followup.send("Checking parameters...")
 
             checking_params: da.Checking_Params = da.create_with_defaults(

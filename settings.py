@@ -43,6 +43,8 @@ DATABASE_CHANNEL_2_ID = 1281127284857634826
 
 BOT_OWNER_ID = 125331697867816961
 
+SERVER_WHITELIST = [SERVER_ID_TEST, ANIMEAI_SERVER]
+
 # Define custom formatter for colored console output
 class ColoredFormatter(logging.Formatter):
     COLORS = {
