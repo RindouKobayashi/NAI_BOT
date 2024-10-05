@@ -131,7 +131,7 @@ class AddModal(Modal):
 
 class RemixModal(Modal):
     def __init__(self, bundle_data: da.BundleData, label: str):
-        super().__init__(title="Remix", timeout=120)
+        super().__init__(title="Remix", timeout=600)
         self.bundle_data = bundle_data
         self.label = label
         self.placeholder = f"Edit {label}"

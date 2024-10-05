@@ -13,7 +13,7 @@ from core.nai_vars import Nai_vars
 
 class VibeTransferView(View):
     def __init__(self, interaction: discord.Interaction):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.interaction = interaction
         self.current_page: int = 1
 
@@ -189,7 +189,7 @@ class VibeTransferView(View):
 
 class RemixView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
 
     async def send(self):
@@ -283,7 +283,7 @@ class SMEAMenu(discord.ui.Select):
 
 class SMEAMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.add_item(SMEAMenu(self.bundle_data))
 
@@ -310,7 +310,7 @@ class ModelMenu(discord.ui.Select):
 
 class ModelMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.add_item(ModelMenu(self.bundle_data))
 
@@ -350,7 +350,7 @@ class TrueFalseMenu(discord.ui.Select):
 
 class TrueFalseMenuView(View):
     def __init__(self, bundle_data: da.BundleData, name: str):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.name = name
         self.add_item(TrueFalseMenu(self.bundle_data, self.name))
@@ -378,7 +378,7 @@ class UndesiredContentMenu(discord.ui.Select):
 
 class UndesiredContentMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.add_item(UndesiredContentMenu(self.bundle_data))
 
@@ -405,7 +405,7 @@ class NoiseScheduleMenu(discord.ui.Select):
 
 class NoiseScheduleMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.add_item(NoiseScheduleMenu(self.bundle_data))
 
@@ -432,7 +432,7 @@ class SamplerMenu(discord.ui.Select):
 
 class SamplerMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.add_item(SamplerMenu(self.bundle_data))
 
@@ -546,7 +546,7 @@ class SelectMenu(discord.ui.Select):
 
 class SelectMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.bundle_data = bundle_data
         self.add_item(SelectMenu(self.bundle_data))
 
