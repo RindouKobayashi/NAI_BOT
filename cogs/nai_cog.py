@@ -86,7 +86,7 @@ class NAI(commands.Cog):
 
         try:
             if interaction.guild_id not in settings.SERVER_WHITELIST and interaction.guild is not None:
-                response = f"This command is not available in this server, contact <@125331697867816961> to request whitelist."
+                response = f"This command is not available in this server, contact <@125331697867816961> or use `/feedback` to request whitelist."
                 response += f"\n-# This is done because people were using this command in server with NAI staff."
                 await interaction.response.send_message(response, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
                 return
