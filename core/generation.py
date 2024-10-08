@@ -218,7 +218,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                             bundle_data['message'] = forward_message
                             # Add reaction to forward message
                             await forward_message.add_reaction("🗑️")
-                            await forward_message.add_reaction("🔎")
+                            # Disabled adding "🔎" reaction as it's a new message and other bot will add that reaction
                         else:
                             message = await message.edit(content=reply_content, attachments=files)
                             # Add reaction to message
