@@ -1,5 +1,6 @@
 import discord
 from discord.ui import View, Button
+import settings
 from settings import USER_VIBE_TRANSFER_DIR, logger, DATABASE_DIR, uuid, Globals
 import base64
 import json
@@ -188,9 +189,13 @@ class VibeTransferView(View):
         await message.delete(delay=10)
 
 class RemixView(View):
-    def __init__(self, bundle_data: da.BundleData):
+    def __init__(self, bundle_data: da.BundleData, forward_channel: discord.TextChannel):
         super().__init__(timeout=600)
         self.bundle_data = bundle_data
+        self.forward_channel = forward_channel
+
+        if bundle_data["interaction"].channel_id != settings.SFW_IMAGE_GEN_BOT_CHANNEL:
+            self.remove_item(self.forward)
 
     async def send(self):
         message = self.bundle_data["message"]
@@ -232,6 +237,22 @@ class RemixView(View):
 
         #from core.queuehandler import nai_queue
         #await nai_queue.add_to_queue(new_data)
+
+    @discord.ui.button(emoji="↪",
+                        style=discord.ButtonStyle.primary,
+                        label="Forward")
+    async def forward(self, interaction: discord.Interaction, button: Button):
+        logger.info(f"Forward button pressed by {interaction.user.name} ({interaction.user.id})")
+        await interaction.response.defer()
+        reply_content = interaction.message.content
+        reply_content += f"\n[View Request]({interaction.message.jump_url})"
+        attachment = await interaction.message.attachments[0].to_file()
+        await self.forward_channel.send(content=reply_content, file=attachment, allowed_mentions=discord.AllowedMentions.none())
+        await self.bundle_data["message"].remove_attachments()
+        await interaction.message.edit(content=f"{interaction.message.content}\nForwarded to {self.forward_channel.mention}")
+        # Disable forward button
+        button.disabled = True
+        await self.send()
 
     async def on_timeout(self):
         self.stop()

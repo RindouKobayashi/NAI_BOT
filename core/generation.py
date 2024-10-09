@@ -235,7 +235,8 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     message = await message.edit(content=reply_content, attachments=files)
                 
                 # Prepare RemixView
-                settings.Globals.remix_views[request_id] = RemixView(bundle_data)
+                forward_channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL)
+                settings.Globals.remix_views[request_id] = RemixView(bundle_data, forward_channel)
                 await settings.Globals.remix_views[request_id].send()
 
                 # Check if channel posted on is 1157817614245052446 then add reaction
