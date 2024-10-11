@@ -2,6 +2,7 @@ import discord
 import settings
 from settings import logger
 from discord.ext import commands
+import random
 
 class ON_MESSAGE(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -17,6 +18,12 @@ class ON_MESSAGE(commands.Cog):
         if message.channel.id == settings.DATABASE_CHANNEL_2_ID:
             await message.reply("**Please do not talk in the database, stooopid**", mention_author=True, delete_after=10)
             await message.delete()
+
+        if message.guild.id == settings.SERVER_ID_TEST:
+            if message.author.id == 878337390584950795:
+                # 30% chance of bot scolding user
+                if random.randint(1, 100) <= 10:
+                    await message.add_reaction("<a:ElivLick:1293771006606966784>")
 
 
 async def setup(bot: commands.Bot):
