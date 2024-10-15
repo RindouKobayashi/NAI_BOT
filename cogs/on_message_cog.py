@@ -20,7 +20,7 @@ class ON_MESSAGE(commands.Cog):
             await message.delete()
 
         if message.guild.id == settings.SERVER_ID_TEST:
-            if message.author.id == 878337390584950795:
+            if message.author.id == 1250664790800470118:
                 # 30% chance of bot scolding user
                 if random.randint(1, 100) <= 10:
                     await message.add_reaction("<a:ElivLick:1293771006606966784>")
