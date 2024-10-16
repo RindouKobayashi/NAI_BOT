@@ -361,10 +361,16 @@ class TrueFalseMenu(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
         new_data: da.BundleData = da.deep_copy_bundle_data(self.bundle_data)
+        if type(self.values[0]) == str:
+            # Convert from str to bool
+            if self.values[0] == "True":
+                self.values[0] = True
+            elif self.values[0] == "False":
+                self.values[0] = False
         if self.name == "decrisper":
-            new_data["checking_params"]["dynamic_thresholding"] = self.values[0]
+            new_data["checking_params"]["dynamic_thresholding"] = bool(self.values[0])
         else:
-            new_data["checking_params"][self.name] = self.values[0]
+            new_data["checking_params"][f"{self.name}"] = bool(self.values[0])
         Globals.select_views_generation_data[new_data["request_id"]] = new_data
         message = await interaction.edit_original_response(content="`Edit successful, if done editing, press button to submit.`")
         await message.delete(delay=1)

@@ -36,7 +36,7 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
                 raise ValueError(f"`Image resolution ({checking_params['width']}x{checking_params['height']}) exceeds the pixel limit ({pixel_limit}px).`")
 
             ### Check upscale
-            if checking_params["upscale"] == True:
+            if bool(checking_params["upscale"]):
                 # Check if width x height <= 640 x 640
                 if checking_params["width"] * checking_params["height"] > Nai_vars.upscale_limit_pixels:
                     raise ValueError(f"`Image resolution ({checking_params['width']}x{checking_params['height']}) exceeds the pixel limit ({Nai_vars.upscale_limit_pixels}px) for upscaling.`")
