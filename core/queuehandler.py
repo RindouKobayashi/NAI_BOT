@@ -53,9 +53,10 @@ class NAIQueue:
         message = bundle_data["message"]
 
         # Check if the user has reached the limit
-        if self.user_request_count.get(user_id, 0) >= 2:
-            await message.edit(content="You have reached the maximum limit of 2 requests in the queue. Please wait for your current requests to complete before adding more.")
-            return False
+        if user_id not in [125331697867816961, 396774290588041228]:
+            if self.user_request_count.get(user_id, 0) >= 2:
+                await message.edit(content="You have reached the maximum limit of 2 requests in the queue. Please wait for your current requests to complete before adding more.")
+                return False
 
         position = len(self.queue_list) + 1
         bundle_data["position"] = position
