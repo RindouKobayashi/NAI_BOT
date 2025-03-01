@@ -88,6 +88,29 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     "skip_cfg_above_sigma": bundle_data['params']['skip_cfg_above_sigma'] if bundle_data['params']['skip_cfg_above_sigma'] else None,
                 }
 
+                if bundle_data['params']['model'] == "nai-diffusion-4-full":
+                    logger.info("Using nai-diffusion-4-full model")
+                    nai_params["v4_prompt"] = {
+                        "caption": {
+                            "base_caption": bundle_data['params']['positive'],
+                            "char_captions": [],
+                        },
+                        "use_coords": False,
+                        "use_order": False,
+                    }
+                    nai_params["v4_negative_prompt"] = {
+                        "caption": {
+                            "base_caption": bundle_data['params']['negative'],
+                            "char_captions": [],
+                        },
+                        "use_coords": False,
+                        "use_order": False,
+                    }
+                    nai_params["legacy_v3_extend"] = False
+                    nai_params["noise_schedule"] = "karras"
+
+                logger.info(f"Parameters: {nai_params}")
+
                 if bundle_data['params']['vibe_transfer_switch']:
                     # Extract image, info and strength value from user database
                     user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{interaction.user.id}.json"

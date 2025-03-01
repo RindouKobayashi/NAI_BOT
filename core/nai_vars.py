@@ -4,7 +4,7 @@ import random
 import discord
 
 class Nai_vars:
-    models = ["nai-diffusion", "nai-diffusion-2", "nai-diffusion-3", "safe-diffusion", "nai-diffusion-furry", "nai-diffusion-furry-3"]
+    models = ["nai-diffusion-4-full", "nai-diffusion", "nai-diffusion-2", "nai-diffusion-3", "safe-diffusion", "nai-diffusion-furry", "nai-diffusion-furry-3"]
     models_choices = [app_commands.Choice(name=name, value=name) for name in models]
     models_select_options = [discord.SelectOption(label=name, description=name) for name in models]
     samplers = ["k_euler", "k_euler_ancestral", "k_dpmpp_2s_ancestral", "k_dpmpp_2m", "k_dpmpp_sde", "k_dpmpp_2m_sde", "ddim_v3"]
@@ -33,7 +33,7 @@ class Nai_vars:
     class pixel_limit():
         def __init__(self, model):
             self.model = model
-            if self.model in ["nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3"]:
+            if self.model in ["nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3", "nai-diffusion-4-full"]:
                 self.pixel_limit = 1024*1024
             else:
                 self.pixel_limit = 640*640
@@ -93,6 +93,13 @@ class Nai_vars:
                     "human_focus": "",
                     "none": ""
                 }
+            elif self.model == "nai-diffusion-4-full":
+                self.presets = {
+                    "heavy": "blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, logo, too many watermarks",
+                    "light": "blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing",
+                    "human_focus": "",
+                    "none": ""
+                }
             self.undesired_content_select_options = [discord.SelectOption(label=name, value=name) for name in self.presets.keys()]
 
     class quality_tags():
@@ -110,6 +117,9 @@ class Nai_vars:
             elif self.model in ["nai-diffusion", "nai-diffusion-furry"]:
                 self.tags = "masterpiece, best quality, "
                 self.add_way = "prepend"
+            elif self.model == "nai-diffusion-4-full":
+                self.tags = "no text, best quality, very aesthetic, absurdres"
+                self.add_way = "append"
 
     class director_tools():
         req_type = ["lineart", "sketch", "colorize", "emotion", "declutter"]
