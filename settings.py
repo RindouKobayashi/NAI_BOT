@@ -6,6 +6,7 @@ import asyncio
 import csv
 import uuid
 import copy
+import random
 
 from dotenv import load_dotenv
 from logging.config import dictConfig

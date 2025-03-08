@@ -5,7 +5,7 @@ import zipfile
 import io
 import base64
 import asyncio
-from settings import logger, NAI_API_TOKEN
+from settings import logger, NAI_API_TOKEN, random
 from pathlib import Path
 from datetime import datetime
 from discord import Interaction, Message, File, AllowedMentions
@@ -127,7 +127,11 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                                 nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
                                 nai_params['reference_strength_multiple'].append(entry['ref_strength'])
 
-                message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>")
+                # random chance of special message happening (1 in 4) to inform about new nai model 4
+                if random.randint(1, 4) == 1:
+                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`\n-# New model `nai-diffusion-4-full` available! Use `model=nai-diffusion-4-full` to use it!")
+                else:
+                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
 
                 # Start the timer
                 start_time = datetime.now()
