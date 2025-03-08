@@ -14,6 +14,9 @@ from logging.config import dictConfig
 load_dotenv()
 
 branch = os.getenv("GITHUB_BRANCH", 'main')
+
+CHANGELOG = "Added NAI preset saving and loading"
+    
 if branch == 'dev':
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
     TO_DATABASE = False

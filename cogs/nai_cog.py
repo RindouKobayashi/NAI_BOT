@@ -201,7 +201,6 @@ class NAI(commands.Cog):
                 skip_cfg_above_sigma=variety_plus,
                 vibe_transfer_switch=vibe_transfer_switch
             )
-            logger.info(f"Checking params: {checking_params}")
 
             checking_params = await check_params(checking_params, interaction)
 
