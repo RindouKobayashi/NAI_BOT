@@ -6,6 +6,7 @@ import asyncio
 import csv
 import uuid
 import copy
+import random
 
 from dotenv import load_dotenv
 from logging.config import dictConfig
@@ -13,6 +14,9 @@ from logging.config import dictConfig
 load_dotenv()
 
 branch = os.getenv("GITHUB_BRANCH", 'main')
+
+CHANGELOG = "Added NAI preset saving and loading"
+    
 if branch == 'dev':
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
     TO_DATABASE = False
@@ -30,6 +34,8 @@ BASE_DIR = pathlib.Path(__file__).parent
 COGS_DIR = BASE_DIR / "cogs"
 DATABASE_DIR = BASE_DIR / "database"
 USER_VIBE_TRANSFER_DIR = DATABASE_DIR / "user_vibe_transfer"
+USER_NAI_PRESETS_DIR = DATABASE_DIR / "user_nai_presets"
+USER_NAI_PRESETS_DIR.mkdir(exist_ok=True)
 
 CHANNEL_ID_TEST = 1188501454806339685
 SERVER_ID_TEST = 1157816835975151706

@@ -5,7 +5,7 @@ import zipfile
 import io
 import base64
 import asyncio
-from settings import logger, NAI_API_TOKEN
+from settings import logger, NAI_API_TOKEN, random
 from pathlib import Path
 from datetime import datetime
 from discord import Interaction, Message, File, AllowedMentions
@@ -127,7 +127,11 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                                 nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
                                 nai_params['reference_strength_multiple'].append(entry['ref_strength'])
 
-                message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>")
+                # random chance of special message happening (1 in 4) to inform about new nai model 4
+                if random.randint(1, 4) == 1:
+                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`\n-# New model `nai-diffusion-4-full` available! Use `model=nai-diffusion-4-full` to use it!")
+                else:
+                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
 
                 # Start the timer
                 start_time = datetime.now()
@@ -192,6 +196,10 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 # Some information for the user
                 reply_content = f"Seed: `{bundle_data['params']['seed']}` | Elapsed time: `{elapsed_time}s`"
                 reply_content += f"\nBy: {interaction.user.mention}"
+                
+                # Include changelog in footnote 1 in 10 chance
+                if random.randint(1, 10) == 1:
+                    reply_content += f"\n-# Changelog: `{settings.CHANGELOG}`"
 
                 # Prepare the image as a file
                 files = []
@@ -286,12 +294,12 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
             if bundle_data['number_of_tries'] > 0:
-                reply_content = f"⚠️ An error occurred: `{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
+                reply_content = f"⚠️`{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
                 await asyncio.sleep(10)
                 #await process_txt2img(bot, bundle_data)
             else:
-                reply_content = f"❌ Error: `{str(e)}`. Please try again later."
+                reply_content = f"❌`{str(e)}`. Please try again later."
                 await message.edit(content=reply_content)
                 return False
 

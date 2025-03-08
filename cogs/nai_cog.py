@@ -61,26 +61,28 @@ class NAI(commands.Cog):
         decrisper="Basically dynamic thresholding (default: False)",
         variety_plus="Enable guidance only after body been formed, improved diversity, saturation of samples. (default: False)",
         vibe_transfer_switch="Vibe transfer switch (default: False)",
+        load_preset="Load a preset for NAI generation"
     )
     async def nai(self, interaction: discord.Interaction, 
                   positive: str, 
                   negative: str = None, 
-                  width: int = Nai_vars.width.default, 
-                  height: int = Nai_vars.height.default, 
-                  steps: int = Nai_vars.steps.default, 
-                  cfg: float = Nai_vars.cfg.default, 
-                  sampler: app_commands.Choice[str] = "k_euler", 
-                  noise_schedule: app_commands.Choice[str] = "native",
-                  smea: app_commands.Choice[str] = "None",
-                  seed: int = 0,
-                  model: app_commands.Choice[str] = "nai-diffusion-3",
-                  quality_toggle: bool = True,
-                  undesired_content_presets: app_commands.Choice[str] = "heavy",
-                  prompt_conversion_toggle: bool = False,
-                  upscale: bool = False,
-                  decrisper: bool = False,
-                  variety_plus: bool = False,
-                  vibe_transfer_switch: bool = False,
+                  width: int = None, 
+                  height: int = None, 
+                  steps: int = None, 
+                  cfg: float = None, 
+                  sampler: app_commands.Choice[str] = None, 
+                  noise_schedule: app_commands.Choice[str] = None,
+                  smea: app_commands.Choice[str] = None,
+                  seed: int = None,
+                  model: app_commands.Choice[str] = None,
+                  quality_toggle: bool = None,
+                  undesired_content_presets: app_commands.Choice[str] = None,
+                  prompt_conversion_toggle: bool = None,
+                  upscale: bool = None,
+                  decrisper: bool = None,
+                  variety_plus: bool = None,
+                  vibe_transfer_switch: bool = None,
+                  load_preset: str = None
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
 
@@ -93,6 +95,90 @@ class NAI(commands.Cog):
             await interaction.response.defer()
             
             await interaction.followup.send("Checking parameters...")
+
+            # Load the preset if specified
+            if load_preset:
+                user_id = str(interaction.user.id)
+                user_nai_presets_dir = settings.USER_NAI_PRESETS_DIR / f"{user_id}.json"
+
+                if user_nai_presets_dir.exists():
+                    with open(user_nai_presets_dir, "r") as f:
+                        user_presets = json.load(f)
+                        if load_preset in user_presets["presets"]:
+                            message = await interaction.edit_original_response(content="Preset found, loading preset...")
+                            preset_data = user_presets["presets"][load_preset]
+                            # Overwrite the parameters with the preset data only if data is not provided
+                            if not negative:
+                                negative = preset_data["negative"]
+                            if not width:
+                                width = preset_data["width"]
+                            if not height:
+                                height = preset_data["height"]
+                            if not steps:
+                                steps = preset_data["steps"]
+                            if not cfg:
+                                cfg = preset_data["cfg"]
+                            if not sampler:
+                                sampler = preset_data["sampler"]
+                            if not noise_schedule:
+                                noise_schedule = preset_data["noise_schedule"]
+                            if not smea:
+                                smea = preset_data["smea"]
+                            if not seed:
+                                seed = preset_data["seed"]
+                            if not model:
+                                model = preset_data["model"]
+                            if not quality_toggle:
+                                quality_toggle = preset_data["quality_toggle"]
+                            if not undesired_content_presets:
+                                undesired_content_presets = preset_data["undesired_content_presets"]
+                            if not prompt_conversion_toggle:
+                                prompt_conversion_toggle = preset_data["prompt_conversion_toggle"]
+                            if not upscale:
+                                upscale = preset_data["upscale"]
+                            if not decrisper:
+                                decrisper = preset_data["decrisper"]
+                            if not variety_plus:
+                                variety_plus = preset_data["variety_plus"]
+                            if not vibe_transfer_switch:
+                                vibe_transfer_switch = preset_data["vibe_transfer_switch"]
+                            await message.edit(content="Preset loaded successfully!")
+
+            # Change none to default values
+            if not negative:
+                negative = None
+            if not width:
+                width = Nai_vars.width.default
+            if not height:
+                height = Nai_vars.height.default
+            if not steps:
+                steps = Nai_vars.steps.default
+            if not cfg:
+                cfg = Nai_vars.cfg.default
+            if not sampler:
+                sampler = "k_euler"
+            if not noise_schedule:
+                noise_schedule = "native"
+            if not smea:
+                smea = "None"
+            if not seed:
+                seed = 0
+            if not model:
+                model = "nai-diffusion-3"
+            if not quality_toggle:
+                quality_toggle = True
+            if not undesired_content_presets:
+                undesired_content_presets = "heavy"
+            if not prompt_conversion_toggle:
+                prompt_conversion_toggle = False
+            if not upscale:
+                upscale = False 
+            if not decrisper:
+                decrisper = False
+            if not variety_plus:
+                variety_plus = False
+            if not vibe_transfer_switch:
+                vibe_transfer_switch = False
 
             checking_params: da.Checking_Params = da.create_with_defaults(
                 da.Checking_Params,
@@ -226,6 +312,186 @@ class NAI(commands.Cog):
         
         return valid_choices
     
+    @nai.autocomplete('load_preset')
+    async def nai_load_preset_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        user_id = str(interaction.user.id)
+        user_nai_presets_dir = settings.USER_NAI_PRESETS_DIR / f"{user_id}.json"
+
+        if not user_nai_presets_dir.exists():
+            return []
+        
+        with open(user_nai_presets_dir, "r") as f:
+            user_presets = json.load(f)
+
+        results = [
+            app_commands.Choice(name=preset_name, value=preset_name)
+            for preset_name in user_presets["presets"]
+            if preset_name.lower().startswith(current.lower())
+        ]
+
+        return results[:25]
+    
+    @app_commands.command(name="save_nai_preset", description="Save your custom NAI generation settings as a preset")
+    @app_commands.choices(
+        sampler=Nai_vars.samplers_choices,
+        noise_schedule=Nai_vars.noise_schedule_choices,
+        model=Nai_vars.models_choices,
+        undesired_content_presets=Nai_vars.undesired_content_presets.presets_choices,
+        smea=Nai_vars.smea_choices
+    )
+    @app_commands.describe(
+        preset_name="Name of the preset",
+        negative="Negative prompt for image generation",
+        width=f"Image width in 64 step increments (default: {Nai_vars.width.default})",
+        height=f"Image height in 64 step increments (default: {Nai_vars.height.default})",
+        steps=f"Number of steps (default: {Nai_vars.steps.default})",
+        cfg="CFG scale (default: 5.0)",
+        sampler="Sampling method (default: k_euler)",
+        noise_schedule="Noise schedule (default: native)",
+        smea="SMEA and SMEA+DYN versions of samplers perform better at high res (default: None)",
+        seed="Seed for generation (default: 0, random)",
+        model="Model to use (default: nai-diffusion-3)",
+        quality_toggle="Tags to increase quality, will be prepended to the prompt (default: True)",
+        undesired_content_presets="Undesired content presets (default: Heavy)",
+        prompt_conversion_toggle="Convert Auto1111 way of prompt to NovelAI way of prompt (default: False)",
+        upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
+        decrisper="Basically dynamic thresholding (default: False)",
+        variety_plus="Enable guidance only after body been formed, improved diversity, saturation of samples. (default: False)",
+        vibe_transfer_switch="Vibe transfer switch (default: False)",
+    )
+    async def save_nai_preset(self, interaction: discord.Interaction,
+                              preset_name: str,
+                              negative: str = None, 
+                              width: int = Nai_vars.width.default, 
+                              height: int = Nai_vars.height.default, 
+                              steps: int = Nai_vars.steps.default, 
+                              cfg: float = Nai_vars.cfg.default, 
+                              sampler: app_commands.Choice[str] = "k_euler", 
+                              noise_schedule: app_commands.Choice[str] = "native",
+                              smea: app_commands.Choice[str] = "None",
+                              seed: int = 0,
+                              model: app_commands.Choice[str] = "nai-diffusion-3",
+                              quality_toggle: bool = True,
+                              undesired_content_presets: app_commands.Choice[str] = "heavy",
+                              prompt_conversion_toggle: bool = False,
+                              upscale: bool = False,
+                              decrisper: bool = False,
+                              variety_plus: bool = False,
+                              vibe_transfer_switch: bool = False,
+                              ):
+        """Save your custom NAI generation settings as a preset"""
+        logger.info(f"COMMAND 'SAVE_NAI_PRESET' USED BY: {interaction.user} ({interaction.user.id})")
+
+        try:
+            await interaction.response.defer(thinking=True)
+
+            # Create user settings file path
+            user_id = str(interaction.user.id)
+            user_nai_presets_dir = settings.USER_NAI_PRESETS_DIR / f"{user_id}.json"
+
+            # Load existing presets or create a new one
+            if user_nai_presets_dir.exists():
+                with open(user_nai_presets_dir, "r") as f:
+                    user_presets = json.load(f)
+            else:
+                user_presets = {"presets": {}}
+
+            # Create new preset
+            preset_data = {
+                "negative": negative,
+                "width": width,
+                "height": height,
+                "steps": steps,
+                "cfg": cfg,
+                "sampler": sampler.value if isinstance(sampler, app_commands.Choice) else sampler,
+                "noise_schedule": noise_schedule.value if isinstance(noise_schedule, app_commands.Choice) else noise_schedule,
+                "smea": smea.value if isinstance(smea, app_commands.Choice) else smea,
+                "seed": seed,
+                "model": model.value if isinstance(model, app_commands.Choice) else model,
+                "quality_toggle": quality_toggle,
+                "undesired_content_presets": undesired_content_presets.value if isinstance(undesired_content_presets, app_commands.Choice) else undesired_content_presets,
+                "prompt_conversion_toggle": prompt_conversion_toggle,
+                "upscale": upscale,
+                "decrisper": decrisper,
+                "variety_plus": variety_plus,
+                "vibe_transfer_switch": vibe_transfer_switch,
+            }
+
+            # Add/Update the preset
+            user_presets["presets"][preset_name] = preset_data
+
+            # Save to file
+            with open(user_nai_presets_dir, "w") as f:
+                json.dump(user_presets, f, indent=4)
+
+            # Create embed for confirmation
+            embed = discord.Embed(
+                title="Preset saved successfully",
+                description=f"Preset `{preset_name}` saved successfully.",
+                color=discord.Color.green()
+            )
+
+            # Add fields for key-value pairs
+            for key, value in preset_data.items():
+                embed.add_field(name=key, value=value, inline=True)
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error in NAI command: {str(e)}")
+            await interaction.followup.send(f"❌ An error occurred while saving the preset. `{str(e)}`", ephemeral=True)
+
+    @app_commands.command(name="view_nai_presets", description="View your saved NAI presets")
+    async def view_nai_presets(self, interaction: discord.Interaction, preset_name: str):
+        """View your saved NAI presets"""
+        logger.info(f"COMMAND 'VIEW_NAI_PRESETS' USED BY: {interaction.user} ({interaction.user.id})")
+        try:
+            await interaction.response.defer(thinking=True)
+
+            user_id = str(interaction.user.id)
+            user_nai_presets_dir = settings.USER_NAI_PRESETS_DIR / f"{user_id}.json"
+
+            embed = discord.Embed(
+                title="Your NAI presets",
+                color=discord.Color.blurple()
+            )
+
+            # Add fields for key-value pairs
+            if user_nai_presets_dir.exists():
+                with open(user_nai_presets_dir, "r") as f:
+                    user_presets = json.load(f)
+
+                if preset_name in user_presets["presets"]:
+                    preset_data = user_presets["presets"][preset_name]
+                    for key, value in preset_data.items():
+                        embed.add_field(name=key, value=value, inline=True)
+
+                    await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error in NAI command: {str(e)}")
+            await interaction.followup.send(f"❌ An error occurred while viewing the preset. `{str(e)}`", ephemeral=True)
+
+
+
+    @view_nai_presets.autocomplete('preset_name')
+    async def view_nai_presets_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        user_id = str(interaction.user.id)
+        user_nai_presets_dir = settings.USER_NAI_PRESETS_DIR / f"{user_id}.json"
+
+        if not user_nai_presets_dir.exists():
+            return []
+
+        with open(user_nai_presets_dir, "r") as f:
+            user_presets = json.load(f)
+
+        results = [
+            app_commands.Choice(name=preset_name, value=preset_name)
+            for preset_name in user_presets["presets"]
+            if preset_name.lower().startswith(current.lower())
+        ]
+
+        return results[:25]
+
     @app_commands.command(name="director_tools", description="Use director tools (for image up to 1024x1024)")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.choices(
