@@ -89,7 +89,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 }
 
                 if bundle_data['params']['model'] == "nai-diffusion-4-full":
-                    logger.info("Using nai-diffusion-4-full model")
+                    #logger.info("Using nai-diffusion-4-full model")
                     nai_params["v4_prompt"] = {
                         "caption": {
                             "base_caption": bundle_data['params']['positive'],
@@ -109,7 +109,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     nai_params["legacy_v3_extend"] = False
                     nai_params["noise_schedule"] = "karras"
 
-                logger.info(f"Parameters: {nai_params}")
+                #logger.info(f"Parameters: {nai_params}")
 
                 if bundle_data['params']['vibe_transfer_switch']:
                     # Extract image, info and strength value from user database
@@ -143,8 +143,22 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 )
                 # Check the status
                 if status != 200:
+                    error_messages = {
+                        400: "Bad request - The request was invalid or cannot be otherwise served",
+                        401: "Unauthorized - Invalid API token",
+                        402: "Payment Required - Payment is required to access this resource",
+                        403: "Forbidden - Access to the resource is forbidden",
+                        404: "Not Found - The requested resource was not found",
+                        429: "Rate Limit Exceeded - Please try again later",
+                        500: "Internal Server Error - NovelAI service issue",
+                        502: "Bad Gateway - NovelAI service temporarily down",
+                        503: "Service Unavailable - NovelAI is currently unavailable",
+                        504: "Gateway Timeout - NovelAI service timed out",
+                    }
                     # Raise an exception if the status is not 200
-                    raise Exception(f"NovelAI API returned status code {status}")
+                    error_msg = error_messages.get(status, f"NovelAI API status code: {status}")
+                    logger.error(f"NovelAI API returned status code {error_msg}")
+                    raise Exception(f"NovelAI API Error: {error_msg}")
 
                 # Process the response
                 zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
@@ -272,12 +286,12 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
             if bundle_data['number_of_tries'] > 0:
-                reply_content = f"An error occurred while processing your request. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
+                reply_content = f"⚠️ An error occurred: `{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
                 await asyncio.sleep(10)
                 #await process_txt2img(bot, bundle_data)
             else:
-                reply_content = f"An error occurred while processing your request. Please try again later."
+                reply_content = f"❌ Error: `{str(e)}`. Please try again later."
                 await message.edit(content=reply_content)
                 return False
 
