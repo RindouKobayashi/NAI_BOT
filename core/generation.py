@@ -290,12 +290,12 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
             if bundle_data['number_of_tries'] > 0:
-                reply_content = f"⚠️ An error occurred: `{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
+                reply_content = f"⚠️`{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
                 await asyncio.sleep(10)
                 #await process_txt2img(bot, bundle_data)
             else:
-                reply_content = f"❌ Error: `{str(e)}`. Please try again later."
+                reply_content = f"❌`{str(e)}`. Please try again later."
                 await message.edit(content=reply_content)
                 return False
 
