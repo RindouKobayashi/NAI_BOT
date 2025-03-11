@@ -231,6 +231,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 file = File(file_path)
                 files = [file]
                 data_base_message_2 = await database_channel_2.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none())
+                await data_base_message_2.add_reaction("🔎")
 
                 # Get image url from message
                 attachment = database_message.attachments[0]
