@@ -5,6 +5,7 @@ import aiohttp
 from settings import logger, AUTOCOMPLETE_DATA
 from discord import app_commands
 from discord.ext import commands
+import json
 
 class BASIC(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -114,6 +115,26 @@ class BASIC(commands.Cog):
         await bot_owner.send(f"Feedback from {interaction.user} : `{feedback}`\nLink to person: [{interaction.user.display_name}](<https://discord.com/users/{interaction.user.id}>) ")
         await interaction.response.send_message("Thank you for your feedback!", ephemeral=True, delete_after=20)
 
+    @app_commands.command(name="stats", description="Shows how much NAI generations you have done")
+    async def stats(self, interaction: discord.Interaction, ephemeral: bool = True):
+        """Shows how much NAI generations you have done"""
+        logger.info(f"COMMAND 'STATS' USED BY: {interaction.user} ({interaction.user.id})")
+        # Get stats from json file
+        with open(settings.STATS_JSON, "r") as f:
+            stats = json.load(f)
+        # Sort users by generation count to determine ranking
+        sorted_users = sorted(stats.items(), key=lambda x: int(x[1]), reverse=True)
+        
+        # Find user's rank
+        user_stats = stats.get(str(interaction.user.id), 0)
+        user_rank = None
+        for index, (user_id, count) in enumerate(sorted_users, 1):
+            if user_id == str(interaction.user.id):
+                user_rank = index
+                break
+        
+        rank_text = f" (Rank `#{user_rank}`)" if user_rank else ""
+        await interaction.response.send_message(f"You have done `{user_stats}` NAI generations{rank_text}.", ephemeral=ephemeral)
         
 
 
@@ -121,4 +142,3 @@ class BASIC(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(BASIC(bot))
-    logger.info("COG LOADED: BASIC - COG FILE: basic_cog.py")

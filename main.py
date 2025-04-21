@@ -30,6 +30,7 @@ async def on_ready():
     for cof_file in settings.COGS_DIR.glob("*cog.py"):
         if cof_file.name != "__init__.py":
             await bot.load_extension(f"cogs.{cof_file.name[:-3]}")
+            logger.info(f"COG LOADED: {cof_file.name[:-3]} - COG FILE: {cof_file.name}")
 
     # load contextmenu
     image_contextmenu.contextmenu(bot)

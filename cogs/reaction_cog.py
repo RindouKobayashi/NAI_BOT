@@ -52,4 +52,3 @@ class REACTION(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(REACTION(bot))
-    logger.info("COG LOADED: REACTION - COG FILE: reaction_cog.py")

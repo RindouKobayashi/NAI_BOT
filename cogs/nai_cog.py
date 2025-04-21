@@ -650,4 +650,3 @@ class NAI(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))
-    logger.info("COG LOADED: NAI - COG FILE: nai_cog.py")
