@@ -39,11 +39,14 @@ class StatsCog(commands.Cog):
         """Formats statistics into a readable message."""
         # Sort users by NAI Generations count in descending order
         sorted_users = sorted(nai_data.items(), key=lambda x: x[1], reverse=True)
+
+        ranking = 1
         
         message_lines = ["**NAI Statistics**\n"]
         for user_id, count in sorted_users:
             mention = f"<@{user_id}>"
-            message_lines.append(f"{mention} - `{count}` NAI generations")
+            message_lines.append(f"Ranking `{ranking}`: {mention} - `{count}` NAI generations")
+            ranking += 1
 
         return "\n".join(message_lines)
 
