@@ -121,4 +121,3 @@ class BASIC(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(BASIC(bot))
-    logger.info("COG LOADED: BASIC - COG FILE: basic_cog.py")

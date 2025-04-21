@@ -76,4 +76,3 @@ class StatsCog(commands.Cog):
 async def setup(bot: commands.Bot):
     """Adds the StatsCog to the bot."""
     await bot.add_cog(StatsCog(bot))
-    logger.info("COG LOADED: Stats - COG FILE: stats_cog.py")

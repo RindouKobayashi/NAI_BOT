@@ -28,4 +28,3 @@ class ON_MESSAGE(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ON_MESSAGE(bot))
-    logger.info("COG LOADED: ON_MESSAGE - COG FILE: on_message_cog.py")
