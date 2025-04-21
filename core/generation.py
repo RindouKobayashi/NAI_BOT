@@ -213,6 +213,16 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 database_channel_2 = bot.get_channel(settings.DATABASE_CHANNEL_2_ID)
                 reply_content_db = reply_content
 
+                # Add to stats.json
+                with open(settings.STATS_JSON, "r") as f:
+                    nai_stats = json.load(f)
+                if str(interaction.user.id) in nai_stats:
+                    nai_stats[str(interaction.user.id)] += 1
+                else:
+                    nai_stats[str(interaction.user.id)] = 1
+                with open(settings.STATS_JSON, "w") as f:
+                    json.dump(nai_stats, f, indent=4)
+
                 # Additional info for the database (adding channel of interaction if it's not dm)
                 if interaction.guild is None:
                     # DM
