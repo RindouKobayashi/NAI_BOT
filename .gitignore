@@ -9,3 +9,5 @@ token.json
 client_secret.json
 database/user_nai_presets
 database/stats.json
+database/wordle_stats.json
+database/wordle_history.json
