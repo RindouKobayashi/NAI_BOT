@@ -133,7 +133,18 @@ class BASIC(commands.Cog):
                 user_rank = index
                 break
         
-        rank_text = f" (Rank `#{user_rank}`)" if user_rank else ""
+        # Get info about next rank
+        rank_text = ""
+        if user_rank:
+            rank_text = f" (Rank `#{user_rank}`)"
+            if user_rank > 1:  # If not rank 1, show generations needed for next rank
+                next_rank_user, next_rank_count = sorted_users[user_rank - 2]  # -2 because rank is 1-based and we want previous index
+                if int(next_rank_count) == int(user_stats):
+                    rank_text += f"\nYou are tied for rank `#{user_rank - 1}`. You need `1` more generation to overtake!"
+                else:
+                    gens_needed = int(next_rank_count) - int(user_stats) + 1
+                    rank_text += f"\nYou need `{gens_needed}` more generations to overtake rank `#{user_rank - 1}`"
+        
         await interaction.response.send_message(f"You have done `{user_stats}` NAI generations{rank_text}.", ephemeral=ephemeral)
         
 
