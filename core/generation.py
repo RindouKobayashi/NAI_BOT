@@ -33,7 +33,7 @@ class NovelAIAPI:
         async with session.post(f"{NovelAIAPI.BASE_URL}/ai/generate-image", json=data, headers=headers) as response:
             try:
                 response.raise_for_status()
-                logger.info(f"NovelAI API response: {response.status}")
+                #logger.info(f"NovelAI API response: {response.status}")
                 return await response.read(), response.status
             except aiohttp.ClientResponseError as e:
                 if e.status == 429:
