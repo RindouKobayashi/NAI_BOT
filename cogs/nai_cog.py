@@ -7,6 +7,7 @@ import io
 import requests
 import dotenv
 import asyncio
+import os # Import the os module
 from os import environ as env
 import zipfile
 from pathlib import Path
@@ -45,6 +46,47 @@ class NAI(commands.Cog):
         self.output_dir = "nai_output"
         self.leaderboard_opt_file = Path("database/leaderboard_opt_status.json")
 
+        # Run vibe transfer data migration on cog load
+        asyncio.create_task(self.migrate_vibe_transfer_data())
+
+    async def migrate_vibe_transfer_data(self):
+        """Migrate old vibe transfer data format to the new preset format."""
+        #logger.info("Starting vibe transfer data migration...")
+        user_vibe_transfer_dir = settings.USER_VIBE_TRANSFER_DIR
+        os.makedirs(user_vibe_transfer_dir, exist_ok=True) # Ensure directory exists
+
+        for filename in os.listdir(user_vibe_transfer_dir):
+            if filename.endswith(".json"):
+                user_file_path = os.path.join(user_vibe_transfer_dir, filename)
+                user_id = filename[:-5] # Remove .json extension
+
+                try:
+                    with open(user_file_path, "r") as f:
+                        user_data = json.load(f)
+
+                    # Check if the data is in the old list format (not a dictionary with "presets")
+                    if isinstance(user_data, list):
+                        logger.info(f"Migrating old data format for user {user_id}")
+                        # Wrap the old list data in the new preset structure
+                        new_data = {"presets": {"Migrated Data": user_data}}
+
+                        # Save the new data, overwriting the old file
+                        with open(user_file_path, "w") as f:
+                            json.dump(new_data, f, indent=4)
+                        logger.info(f"Migration successful for user {user_id}")
+                    elif isinstance(user_data, dict) and "presets" in user_data:
+                        logger.info(f"Data for user {user_id} is already in the new format. Skipping migration.")
+                    else:
+                        logger.warning(f"Unknown data format for user {user_id} in {filename}. Skipping migration.")
+
+                except json.JSONDecodeError:
+                    logger.error(f"Error decoding JSON from {filename}. Skipping migration for this file.")
+                except Exception as e:
+                    logger.error(f"Error during migration for user {user_id} ({filename}): {e}. Skipping this file.")
+
+        #logger.info("Vibe transfer data migration complete.")
+
+
     @app_commands.command(name="nai", description="Generate an image using NovelAI")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.choices(
@@ -72,8 +114,8 @@ class NAI(commands.Cog):
         upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
         decrisper="Basically dynamic thresholding (default: False)",
         variety_plus="Enable guidance only after body been formed, improved diversity, saturation of samples. (default: False)",
-        vibe_transfer_switch="Vibe transfer switch (default: False)",
-        load_preset="Load a preset for NAI generation"
+        load_preset="Load a preset for NAI generation",
+        vibe_transfer_preset="Load a vibe transfer preset"
     )
     async def nai(self, interaction: discord.Interaction,
                   positive: str,
@@ -93,8 +135,8 @@ class NAI(commands.Cog):
                   upscale: bool = None,
                   decrisper: bool = None,
                   variety_plus: bool = None,
-                  vibe_transfer_switch: bool = None,
-                  load_preset: str = None
+                  load_preset: str = None,
+                  vibe_transfer_preset: str = None
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
 
@@ -152,8 +194,6 @@ class NAI(commands.Cog):
                                 decrisper = preset_data["decrisper"]
                             if not variety_plus:
                                 variety_plus = preset_data["variety_plus"]
-                            if not vibe_transfer_switch:
-                                vibe_transfer_switch = preset_data["vibe_transfer_switch"]
                             await message.edit(content="Preset loaded successfully!")
 
             # Change none to default values
@@ -189,8 +229,36 @@ class NAI(commands.Cog):
                 decrisper = False
             if not variety_plus:
                 variety_plus = False
-            if not vibe_transfer_switch:
-                vibe_transfer_switch = False
+
+            # Determine vibe_transfer_switch and load data based on vibe_transfer_preset
+            vibe_transfer_switch = False
+            vibe_transfer_data = None
+            if vibe_transfer_preset:
+                user_id = str(interaction.user.id)
+                user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+
+                if os.path.exists(user_file_path):
+                    try:
+                        with open(user_file_path, "r") as f:
+                            loaded_data = json.load(f)
+                            if isinstance(loaded_data, dict) and "presets" in loaded_data and vibe_transfer_preset in loaded_data["presets"]:
+                                vibe_transfer_data = loaded_data["presets"][vibe_transfer_preset]
+                                vibe_transfer_switch = True # Enable switch if preset data is found
+                            else:
+                                await interaction.followup.send(f"Vibe transfer preset `{vibe_transfer_preset}` not found.", ephemeral=True)
+                                return # Stop execution if preset not found
+                    except json.JSONDecodeError:
+                        logger.error(f"Error decoding JSON from {user_file_path} during NAI command. Cannot load preset.")
+                        await interaction.followup.send(f"Error loading vibe transfer preset `{vibe_transfer_preset}`.", ephemeral=True)
+                        return # Stop execution on error
+                    except Exception as e:
+                        logger.error(f"Error loading vibe transfer preset {vibe_transfer_preset} for user {user_id}: {e}.")
+                        await interaction.followup.send(f"Error loading vibe transfer preset `{vibe_transfer_preset}`.", ephemeral=True)
+                        return # Stop execution on error
+                else:
+                    await interaction.followup.send(f"Vibe transfer preset `{vibe_transfer_preset}` not found.", ephemeral=True)
+                    return # Stop execution if file doesn't exist
+
 
             checking_params: da.Checking_Params = da.create_with_defaults(
                 da.Checking_Params,
@@ -211,7 +279,8 @@ class NAI(commands.Cog):
                 upscale=upscale,
                 dynamic_thresholding=decrisper,
                 skip_cfg_above_sigma=variety_plus,
-                vibe_transfer_switch=vibe_transfer_switch
+                vibe_transfer_preset=vibe_transfer_preset,
+                vibe_transfer_data=vibe_transfer_data
             )
 
             checking_params = await check_params(checking_params, interaction)
@@ -232,10 +301,11 @@ class NAI(commands.Cog):
                 sm_dyn=checking_params["sm_dyn"],
                 seed=checking_params["seed"],
                 model=checking_params["model"],
-                vibe_transfer_switch=checking_params["vibe_transfer_switch"],
                 dynamic_thresholding=checking_params["dynamic_thresholding"],
                 skip_cfg_above_sigma=checking_params["skip_cfg_above_sigma"],
                 upscale=checking_params["upscale"],
+                vibe_transfer_preset=checking_params["vibe_transfer_preset"],
+                vibe_transfer_data=checking_params["vibe_transfer_data"]
             )
 
             message = await interaction.edit_original_response(content="Adding your request to the queue...")
@@ -343,6 +413,37 @@ class NAI(commands.Cog):
 
         return results[:25]
 
+    @nai.autocomplete('vibe_transfer_preset')
+    async def nai_vibe_transfer_preset_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        user_id = str(interaction.user.id)
+        user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+
+        if not os.path.exists(user_file_path):
+            return []
+
+        user_data = {"presets": {}}
+        try:
+            with open(user_file_path, "r") as f:
+                loaded_data = json.load(f)
+                if isinstance(loaded_data, dict) and "presets" in loaded_data:
+                    user_data = loaded_data
+                else:
+                    # Fallback for old format if migration didn't run
+                    user_data["presets"]["Migrated Data (Fallback)"] = loaded_data
+        except json.JSONDecodeError:
+            return []
+        except Exception:
+            return []
+
+        results = [
+            app_commands.Choice(name=preset_name, value=preset_name)
+            for preset_name in user_data["presets"]
+            if preset_name.lower().startswith(current.lower())
+        ]
+
+        return results[:25]
+
+
     @app_commands.command(name="save_nai_preset", description="Save your custom NAI generation settings as a preset")
     @app_commands.choices(
         sampler=Nai_vars.samplers_choices,
@@ -369,7 +470,6 @@ class NAI(commands.Cog):
         upscale="Upscale image by 4x. Only available for images up to 640x640 (default: False)",
         decrisper="Basically dynamic thresholding (default: False)",
         variety_plus="Enable guidance only after body been formed, improved diversity, saturation of samples. (default: False)",
-        vibe_transfer_switch="Vibe transfer switch (default: False)",
     )
     async def save_nai_preset(self, interaction: discord.Interaction,
                               preset_name: str,
@@ -389,7 +489,6 @@ class NAI(commands.Cog):
                               upscale: bool = False,
                               decrisper: bool = False,
                               variety_plus: bool = False,
-                              vibe_transfer_switch: bool = False,
                               ):
         """Save your custom NAI generation settings as a preset"""
         logger.info(f"COMMAND 'SAVE_NAI_PRESET' USED BY: {interaction.user} ({interaction.user.id})")
@@ -426,7 +525,6 @@ class NAI(commands.Cog):
                 "upscale": upscale,
                 "decrisper": decrisper,
                 "variety_plus": variety_plus,
-                "vibe_transfer_switch": vibe_transfer_switch,
             }
 
             # Add/Update the preset
@@ -503,6 +601,37 @@ class NAI(commands.Cog):
         ]
 
         return results[:25]
+
+    @nai.autocomplete('vibe_transfer_preset')
+    async def nai_vibe_transfer_preset_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        user_id = str(interaction.user.id)
+        user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+
+        if not os.path.exists(user_file_path):
+            return []
+
+        user_data = {"presets": {}}
+        try:
+            with open(user_file_path, "r") as f:
+                loaded_data = json.load(f)
+                if isinstance(loaded_data, dict) and "presets" in loaded_data:
+                    user_data = loaded_data
+                else:
+                    # Fallback for old format if migration didn't run
+                    user_data["presets"]["Migrated Data (Fallback)"] = loaded_data
+        except json.JSONDecodeError:
+            return []
+        except Exception:
+            return []
+
+        results = [
+            app_commands.Choice(name=preset_name, value=preset_name)
+            for preset_name in user_data["presets"]
+            if preset_name.lower().startswith(current.lower())
+        ]
+
+        return results[:25]
+
 
     @app_commands.command(name="director_tools", description="Use director tools (for image up to 1024x1024)")
     @app_commands.allowed_installs(guilds=True, users=True)
@@ -587,7 +716,26 @@ class NAI(commands.Cog):
         image_5_info_extracted="Extracted image 5 info",
         image_5_ref_strength="Reference image 5 strength",
     )
+    @app_commands.describe(
+        preset_name="Name for this vibe transfer preset",
+        image_1="Reference image 1",
+        image_1_info_extracted="Extracted image 1 info",
+        image_1_ref_strength="Reference image 1 strength",
+        image_2="Reference image 2",
+        image_2_info_extracted="Extracted image 2 info",
+        image_2_ref_strength="Reference image 2 strength",
+        image_3="Reference image 3",
+        image_3_info_extracted="Extracted image 3 info",
+        image_3_ref_strength="Reference image 3 strength",
+        image_4="Reference image 4",
+        image_4_info_extracted="Extracted image 4 info",
+        image_4_ref_strength="Reference image 4 strength",
+        image_5="Reference image 5",
+        image_5_info_extracted="Extracted image 5 info",
+        image_5_ref_strength="Reference image 5 strength",
+    )
     async def vibe_trasnfer(self, interaction: discord.Interaction,
+                            preset_name: str,
                             image_1: discord.Attachment,
                             image_1_info_extracted: float,
                             image_1_ref_strength: float,
@@ -620,7 +768,7 @@ class NAI(commands.Cog):
                     raise ValueError("Info extracted value must be between 0 and 1.")
                 if strength is not None and not 0 <= strength <= 1:
                     raise ValueError("Reference strength value must be between 0 and 1.")
-                    
+
             # Check all attachments are valid images
             for attachment in images:
                 if attachment is not None and not attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
@@ -630,34 +778,143 @@ class NAI(commands.Cog):
             user_id = str(interaction.user.id)
             user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
 
-            json_data = []
+            # Ensure the directory exists
+            os.makedirs(settings.USER_VIBE_TRANSFER_DIR, exist_ok=True)
 
+            # Load existing data or create new structure
+            user_data = {"presets": {}}
+            if os.path.exists(user_file_path):
+                try:
+                    with open(user_file_path, "r") as f:
+                        loaded_data = json.load(f)
+                        # Check if the loaded data is in the new preset format
+                        if isinstance(loaded_data, dict) and "presets" in loaded_data:
+                            user_data = loaded_data
+                        else:
+                            # This case should ideally be handled by the migration logic on startup,
+                            # but as a fallback, treat old format as a single preset.
+                            logger.warning(f"Old vibe transfer data format detected for user {user_id}. Migration might not have run.")
+                            user_data["presets"]["Migrated Data (Fallback)"] = loaded_data # Put old data under a fallback preset name
+                except json.JSONDecodeError:
+                    logger.error(f"Error decoding JSON from {user_file_path}. Starting with empty data.")
+                    user_data = {"presets": {}}
+                except Exception as e:
+                    logger.error(f"Error loading vibe transfer data for user {user_id}: {e}. Starting with empty data.")
+                    user_data = {"presets": {}}
+
+
+            # Prepare the image data for the new preset
+            preset_image_data = []
             for image, info, strength in zip(images, infos, strengths):
                 if image is not None:
                     image_bytes = await image.read()
                     image_string = base64.b64encode(image_bytes).decode("utf-8")
-                    json_data.append({
+                    preset_image_data.append({
                         "image": image_string,
                         "info_extracted": info,
                         "ref_strength": strength
                     })
 
+            # Add/Update the preset with the new image data
+            user_data["presets"][preset_name] = preset_image_data
+
+            # Save to file
             with open(user_file_path, "w") as f:
-                json.dump(json_data, f, indent=4)
+                json.dump(user_data, f, indent=4)
 
-            await interaction.edit_original_response(content="Vibe transfer data saved successfully.")
+            await interaction.edit_original_response(content=f"Vibe transfer data saved successfully under preset `{preset_name}`.")
 
+        except ValueError as ve:
+            logger.error(f"Error in VIBE_TRANSFER command (validation): {str(ve)}")
+            await interaction.edit_original_response(content=f"❌ Parameter Error: `{str(ve)}`")
         except Exception as e:
-            logger.error(f"Error in NAI command: {str(e)}")
-            await interaction.edit_original_response(content=f"An error occurred while processing the command. `{str(e)}`")
+            logger.error(f"Error in VIBE_TRANSFER command: {str(e)}")
+            await interaction.edit_original_response(content=f"❌ An error occurred while processing the command. `{str(e)}`")
 
     @app_commands.command(name="view_vibe_transfer", description="View your saved vibe transfer data and edit them")
     @app_commands.allowed_installs(guilds=True, users=True)
-    async def view_vibe_transfer(self, interaction: discord.Interaction, ephemeral: bool = True):
+    @app_commands.describe(
+        preset_name="The name of the preset to view (optional)",
+        ephemeral="Whether the reply should be ephemeral (default: True)"
+    )
+    async def view_vibe_transfer(self, interaction: discord.Interaction, preset_name: str = None, ephemeral: bool = True):
         logger.info(f"COMMAND 'VIEW_VIBE_TRANSFER' USED BY: {interaction.user} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=ephemeral)
-        pagination_view = VibeTransferView(interaction=interaction)
+
+        user_id = str(interaction.user.id)
+        user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+
+        user_data = {"presets": {}}
+        if os.path.exists(user_file_path):
+            try:
+                with open(user_file_path, "r") as f:
+                    loaded_data = json.load(f)
+                    if isinstance(loaded_data, dict) and "presets" in loaded_data:
+                        user_data = loaded_data
+                    else:
+                         # Fallback for old format if migration didn't run
+                         logger.warning(f"Old vibe transfer data format detected for user {user_id} during view. Migration might not have run.")
+                         user_data["presets"]["Migrated Data (Fallback)"] = loaded_data
+            except json.JSONDecodeError:
+                logger.error(f"Error decoding JSON from {user_file_path} during view. No data loaded.")
+                user_data = {"presets": {}}
+            except Exception as e:
+                logger.error(f"Error loading vibe transfer data for user {user_id} during view: {e}. No data loaded.")
+                user_data = {"presets": {}}
+
+        if not user_data["presets"]:
+            await interaction.followup.send("You have no saved vibe transfer presets.", ephemeral=ephemeral)
+            return
+
+        # If a preset name is provided, check if it exists
+        if preset_name and preset_name not in user_data["presets"]:
+             await interaction.followup.send(f"Preset `{preset_name}` not found.", ephemeral=ephemeral)
+             return
+
+        # If no preset name is provided, default to the first one or "Migrated Data (Fallback)" if it exists
+        if not preset_name:
+            if "Migrated Data (Fallback)" in user_data["presets"]:
+                preset_name = "Migrated Data (Fallback)"
+            elif user_data["presets"]:
+                preset_name = list(user_data["presets"].keys())[0]
+            else:
+                 # Should not happen if the check above passes, but for safety
+                 await interaction.followup.send("You have no saved vibe transfer presets.", ephemeral=ephemeral)
+                 return
+
+
+        pagination_view = VibeTransferView(interaction=interaction, user_data=user_data, initial_preset_name=preset_name)
         await pagination_view.send()
+
+    @view_vibe_transfer.autocomplete('preset_name')
+    async def view_vibe_transfer_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        user_id = str(interaction.user.id)
+        user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+
+        if not os.path.exists(user_file_path):
+            return []
+
+        user_data = {"presets": {}}
+        try:
+            with open(user_file_path, "r") as f:
+                loaded_data = json.load(f)
+                if isinstance(loaded_data, dict) and "presets" in loaded_data:
+                    user_data = loaded_data
+                else:
+                    # Fallback for old format if migration didn't run
+                    user_data["presets"]["Migrated Data (Fallback)"] = loaded_data
+        except json.JSONDecodeError:
+            return []
+        except Exception:
+            return []
+
+        results = [
+            app_commands.Choice(name=preset_name, value=preset_name)
+            for preset_name in user_data["presets"]
+            if preset_name.lower().startswith(current.lower())
+        ]
+
+        return results[:25]
 
     @app_commands.command(name="nai-stats", description="View your NAI generation statistics (Bot owner can view other users' stats)")
     @app_commands.describe(
@@ -823,7 +1080,7 @@ class NAI(commands.Cog):
         else:
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @app_commands.command(name="nai-history", description="View your recent NAI generations (Owner only)")
+    @app_commands.command(name="nai-history", description="View your recent NAI generations (Still in testing)")
     @app_commands.describe(
         user="The user whose history you want to view (Owner only)",
         ephemeral="Whether the reply should be ephemeral (default: False)"
@@ -837,25 +1094,15 @@ class NAI(commands.Cog):
             return
 
         target_user = user or interaction.user
-        
+
         await interaction.response.defer(ephemeral=ephemeral)
-        
+
         # Get user history
         history = stats_manager.get_user_history(target_user.id, limit=3)  # Last 3 generations
         if not history:
             await interaction.followup.send(f"No generation history found for {target_user.mention}!", ephemeral=ephemeral)
             return
 
-        target_user = user or interaction.user
-        
-        await interaction.response.defer()
-        
-        # Get user history
-        history = stats_manager.get_user_history(target_user.id, limit=3)  # Last 3 generations
-        if not history:
-            await interaction.followup.send(f"No generation history found for {target_user.mention}!")
-            return
-        
         embed = discord.Embed(
             title=f"🎨 Recent Generations for {target_user.name}",
             color=BLUE
@@ -877,24 +1124,24 @@ class NAI(commands.Cog):
             command_str += f" seed: {params.seed}"
             command_str += f" model: {params.model}"
             # Only include optional parameters if they are not their default values or are explicitly set
-            if params.quality_toggle is not None and params.quality_toggle != True: # Assuming default is True
-                 command_str += f" quality_toggle: {params.quality_toggle}"
-            if params.undesired_content_preset and params.undesired_content_preset != "heavy": # Assuming default is heavy
-                 command_str += f" undesired_content_presets: {params.undesired_content_preset}"
-            if params.prompt_conversion is not None and params.prompt_conversion != False: # Assuming default is False
-                 command_str += f" prompt_conversion_toggle: {params.prompt_conversion}"
-            if params.upscale is not None and params.upscale != False: # Assuming default is False
-                 command_str += f" upscale: {params.upscale}"
-            if params.decrisper is not None and params.decrisper != False: # Assuming default is False
-                 command_str += f" decrisper: {params.decrisper}"
-            if params.variety_plus is not None and params.variety_plus != False: # Assuming default is False
-                 command_str += f" variety_plus: {params.variety_plus}"
-            if params.vibe_transfer is not None and params.vibe_transfer != False: # Assuming default is False
-                 command_str += f" vibe_transfer_switch: {params.vibe_transfer}"
+            if getattr(params, 'quality_toggle', True) is not True: # Safely access quality_toggle
+                 command_str += f" quality_toggle: {getattr(params, 'quality_toggle', True)}"
+            if getattr(params, 'undesired_content_preset', 'heavy') != 'heavy': # Safely access undesired_content_preset
+                 command_str += f" undesired_content_presets: {getattr(params, 'undesired_content_preset', 'heavy')}"
+            if getattr(params, 'prompt_conversion', False) is not False: # Safely access prompt_conversion
+                 command_str += f" prompt_conversion_toggle: {getattr(params, 'prompt_conversion', False)}"
+            if getattr(params, 'upscale', False) is not False: # Safely access upscale
+                 command_str += f" upscale: {getattr(params, 'upscale', False)}"
+            if getattr(params, 'decrisper', False) is not False: # Safely access decrisper (Dynamic Thresholding)
+                 command_str += f" decrisper: {getattr(params, 'decrisper', False)}"
+            if getattr(params, 'variety_plus', False) is not False: # Safely access variety_plus (Skip CFG Above Sigma)
+                 command_str += f" variety_plus: {getattr(params, 'variety_plus', False)}"
+            if getattr(params, 'vibe_transfer_preset', None): # Safely access vibe_transfer_preset
+                 command_str += f" vibe_transfer_preset: \"{getattr(params, 'vibe_transfer_preset', None)}\""
 
 
             # Truncate prompts if too long for embed field value
-            display_positive = params.positive_prompt
+            display_positive = params.positive_prompt # Use positive_prompt from GenerationParameters
             display_negative = params.negative_prompt or "N/A"
             max_prompt_length = 200 # Arbitrary limit to keep embed readable
             if len(display_positive) > max_prompt_length:
@@ -913,9 +1160,17 @@ class NAI(commands.Cog):
                 f"Sampler: `{params.sampler}`\n"
                 f"Steps: `{params.steps}`\n"
                 f"CFG: `{params.cfg}`\n"
-                f"UC Preset: `{params.undesired_content_preset or 'N/A'}`"
+                f"UC Preset: `{params.undesired_content_preset or 'N/A'}`\n" # Use undesired_content_preset from GenerationParameters
+                f"Decrisper: `{getattr(params, 'decrisper', False)}`\n" # Safely access decrisper
+                f"Variety Plus: `{getattr(params, 'variety_plus', False)}`" # Safely access variety_plus
             )
             
+            # Add Vibe Transfer Preset if used
+            vibe_transfer_preset_name = getattr(params, 'vibe_transfer_preset', None)
+            if vibe_transfer_preset_name:
+                 value += f"\nVibe Transfer Preset: `{vibe_transfer_preset_name}`"
+
+
             if gen.result.error_message:
                 value += f"\nError: `{gen.result.error_message}`"
 
@@ -946,20 +1201,21 @@ class NAI(commands.Cog):
             command_str += f" seed: {params.seed}"
             command_str += f" model: {params.model}"
             # Only include optional parameters if they are not their default values or are explicitly set
-            if params.quality_toggle is not None and params.quality_toggle != True: # Assuming default is True
-                 command_str += f" quality_toggle: {params.quality_toggle}"
-            if params.undesired_content_preset and params.undesired_content_preset != "heavy": # Assuming default is heavy
-                 command_str += f" undesired_content_presets: {params.undesired_content_preset}"
-            if params.prompt_conversion is not None and params.prompt_conversion != False: # Assuming default is False
-                 command_str += f" prompt_conversion_toggle: {params.prompt_conversion}"
-            if params.upscale is not None and params.upscale != False: # Assuming default is False
-                 command_str += f" upscale: {params.upscale}"
-            if params.decrisper is not None and params.decrisper != False: # Assuming default is False
-                 command_str += f" decrisper: {params.decrisper}"
-            if params.variety_plus is not None and params.variety_plus != False: # Assuming default is False
-                 command_str += f" variety_plus: {params.variety_plus}"
-            if params.vibe_transfer is not None and params.vibe_transfer != False: # Assuming default is False
-                 command_str += f" vibe_transfer_switch: {params.vibe_transfer}"
+            if getattr(params, 'quality_toggle', True) is not True: # Safely access quality_toggle
+                 command_str += f" quality_toggle: {getattr(params, 'quality_toggle', True)}"
+            if getattr(params, 'undesired_content_preset', 'heavy') != 'heavy': # Safely access undesired_content_preset
+                 command_str += f" undesired_content_presets: {getattr(params, 'undesired_content_preset', 'heavy')}"
+            if getattr(params, 'prompt_conversion', False) is not False: # Safely access prompt_conversion
+                 command_str += f" prompt_conversion_toggle: {getattr(params, 'prompt_conversion', False)}"
+            if getattr(params, 'upscale', False) is not False: # Safely access upscale
+                 command_str += f" upscale: {getattr(params, 'upscale', False)}"
+            if getattr(params, 'decrisper', False) is not False: # Safely access decrisper
+                 command_str += f" decrisper: {getattr(params, 'decrisper', False)}"
+            if getattr(params, 'variety_plus', False) is not False: # Safely access variety_plus
+                 command_str += f" variety_plus: {getattr(params, 'variety_plus', False)}"
+            if getattr(params, 'vibe_transfer_preset', None): # Include preset name if used
+                 command_str += f" vibe_transfer_preset: \"{getattr(params, 'vibe_transfer_preset', None)}\""
+
 
             await interaction.followup.send(f"Command for Generation {len(history) - i}:\n```{command_str}```", ephemeral=ephemeral)
 

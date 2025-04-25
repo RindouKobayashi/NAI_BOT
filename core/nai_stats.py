@@ -24,7 +24,7 @@ class GenerationParameters:
     upscale: bool
     decrisper: bool
     variety_plus: bool
-    vibe_transfer: bool
+    vibe_transfer_used: bool = False # Added field to track if vibe transfer was used
     undesired_content_preset: Optional[str] = None # Added field for detected preset
 
 @dataclass
@@ -70,9 +70,10 @@ class NAIGenerationHistory:
         result_data.setdefault("attempts_made", attempts_made)
         result_data.pop('image_url', None) # Remove image_url if it exists in old data
 
-        # Handle potential missing undesired_content_preset in old data
+        # Handle potential missing undesired_content_preset and vibe_transfer_used in old data
         parameters_data = data.get("parameters", {})
         parameters_data.setdefault("undesired_content_preset", None)
+        parameters_data.setdefault("vibe_transfer_used", False) # Ensure new field exists for old data
 
 
         return cls(
@@ -175,7 +176,7 @@ class NAIUserStats:
             # Update special features usage
             if history.parameters.upscale:
                 self.upscale_count += 1
-            if history.parameters.vibe_transfer:
+            if history.parameters.vibe_transfer_used: # Check the new field
                 self.vibe_transfer_count += 1
             if history.parameters.quality_toggle: # Update quality toggle count
                 self.quality_toggle_count += 1

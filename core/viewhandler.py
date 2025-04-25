@@ -1,22 +1,68 @@
 import discord
-from discord.ui import View, Button
+from discord.ui import View, Button, Select
 import settings
 from settings import USER_VIBE_TRANSFER_DIR, logger, DATABASE_DIR, uuid, Globals
 import base64
 import json
 import os
 import random
-from core.modalhandler import EditModal, AddModal, RemixModal
+from core.modalhandler import EditModal, AddModal, RemixModal, RenamePresetModal, DeletePresetModal # Import new modals
 from core.nai_utils import base64_to_image
 import core.dict_annotation as da
 from core.checking_params import check_params
 from core.nai_vars import Nai_vars
 
+class PresetSelect(Select):
+    def __init__(self, user_data: dict, initial_preset_name: str):
+        self.user_data = user_data
+        self.initial_preset_name = initial_preset_name
+        options = [
+            discord.SelectOption(label=name, value=name)
+            for name in user_data.get("presets", {}).keys()
+        ]
+        # Set the default option if initial_preset_name is provided and exists
+        for option in options:
+            if option.value == initial_preset_name:
+                option.default = True
+                break
+
+        super().__init__(placeholder="Select a preset", min_values=1, max_values=1, options=options, row=0)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        selected_preset_name = self.values[0]
+        # Check the type of the parent view to determine the correct action
+        if isinstance(self.view, VibeTransferView):
+            # If the parent is VibeTransferView, update the message within that view
+            self.view.current_preset_name = selected_preset_name
+            self.view.current_page = 1 # Reset page when changing preset
+            await self.view.update_message()
+        elif isinstance(self.view, VibeTransferPresetMenuView):
+            # If the parent is VibeTransferPresetMenuView, handle the preset selection
+            await self.view.handle_preset_selection(selected_preset_name, interaction)
+        else:
+            # Should not happen if PresetSelect is only used in these two views
+            logger.error(f"PresetSelect used in unexpected view type: {type(self.view)}")
+            await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
+
+
 class VibeTransferView(View):
-    def __init__(self, interaction: discord.Interaction):
+    def __init__(self, interaction: discord.Interaction, user_data: dict, initial_preset_name: str):
         super().__init__(timeout=600)
         self.interaction = interaction
+        self.user_data = user_data
+        self.current_preset_name = initial_preset_name
         self.current_page: int = 1
+
+        # Add the preset selection dropdown
+        self.add_item(PresetSelect(user_data, initial_preset_name))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Only allow the original interaction author to interact with the view."""
+        if interaction.user.id != self.interaction.user.id:
+            await interaction.response.send_message("You are not authorized to use this view.", ephemeral=True)
+            return False
+        return True
 
     async def send(self):
         self.message = await self.interaction.original_response()
@@ -24,18 +70,19 @@ class VibeTransferView(View):
 
     async def create_embed(self):
         embed = discord.Embed(
-            title="Vibe Transfer Data",
+            title=f"Vibe Transfer Data - Preset: `{self.current_preset_name}`",
             description=f"Image {self.current_page}/5",
             color=discord.Color.blurple()
         )
-        vibe_transfer_data =  await self.get_json_data()
-        if self.current_page <= len(vibe_transfer_data):
+        preset_data = self.user_data.get("presets", {}).get(self.current_preset_name, [])
+
+        if self.current_page <= len(preset_data):
             # convert base64 string to image
-            image = base64_to_image(vibe_transfer_data[self.current_page - 1]["image"])
+            image = base64_to_image(preset_data[self.current_page - 1]["image"])
             file = discord.File(image, filename="image.png")
             embed.set_image(url="attachment://image.png")
-            embed.add_field(name=f"Info Extracted: ", value=f"{vibe_transfer_data[self.current_page - 1]['info_extracted']}", inline=True)
-            embed.add_field(name=f"Reference Strength: ", value=f"{vibe_transfer_data[self.current_page - 1]['ref_strength']}", inline=True)
+            embed.add_field(name=f"Info Extracted: ", value=f"{preset_data[self.current_page - 1]['info_extracted']}", inline=True)
+            embed.add_field(name=f"Reference Strength: ", value=f"{preset_data[self.current_page - 1]['ref_strength']}", inline=True)
         else:
             file = discord.File(f"{DATABASE_DIR}/No-image-found.jpg", filename="image.png")
             embed.set_image(url="attachment://image.png")
@@ -43,65 +90,75 @@ class VibeTransferView(View):
             embed.add_field(name="Reference Strength: ", value="No data found", inline=True)
         embed.set_footer(text=f"Requested by {self.interaction.user}", icon_url=self.interaction.user.display_avatar.url)
         return embed, file
-    
+
     async def update_message(self, content: str = None):
         await self.update_buttons()
         embed, file = await self.create_embed()
+
+        # Update the preset select dropdown options and default
+        for item in self.children:
+            if isinstance(item, PresetSelect):
+                # Regenerate options based on current user_data
+                item.options = [
+                    discord.SelectOption(label=name, value=name)
+                    for name in self.user_data.get("presets", {}).keys()
+                ]
+                # Set the default option
+                for option in item.options:
+                    option.default = (option.value == self.current_preset_name)
+                # If the current preset was deleted and no presets are left, disable the dropdown
+                if not item.options:
+                    item.disabled = True
+                    item.placeholder = "No presets available"
+                else:
+                    item.disabled = False
+                    item.placeholder = "Select a preset"
+                break # Assuming only one PresetSelect
+
         await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file], content=content)
-    
-    async def get_json_data(self):
-        # Check if file exists
-        if not os.path.exists(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json"):
-            return None
-        with open(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json", "r") as f:
-            return json.load(f)
-        
-    async def delete_json_data(self):
-        vibe_transfer_data = await self.get_json_data()
-        if self.current_page <= len(vibe_transfer_data):
-            del vibe_transfer_data[self.current_page - 1]
 
-        with open(f"{USER_VIBE_TRANSFER_DIR}/{self.interaction.user.id}.json", "w") as f:
-            json.dump(vibe_transfer_data, f, indent=4)
+    async def save_json_data(self):
+        user_id = str(self.interaction.user.id)
+        user_file_path = f"{USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+        os.makedirs(USER_VIBE_TRANSFER_DIR, exist_ok=True) # Ensure directory exists
+        with open(user_file_path, "w") as f:
+            json.dump(self.user_data, f, indent=4)
 
-        
+    async def delete_current_image(self):
+        preset_data = self.user_data.get("presets", {}).get(self.current_preset_name, [])
+        if self.current_page <= len(preset_data):
+            del preset_data[self.current_page - 1]
+            self.user_data["presets"][self.current_preset_name] = preset_data # Update the user_data dictionary
+            await self.save_json_data()
+            # Adjust current_page if the last image was deleted
+            if self.current_page > len(preset_data) and self.current_page > 1:
+                self.current_page -= 1
+
+
     async def update_buttons(self):
-        if self.current_page == 1:
-            self.goto_first.disabled = True
-            self.goto_previous.disabled = True
-        else:
-            self.goto_first.disabled = False
-            self.goto_previous.disabled = False
+        preset_data = self.user_data.get("presets", {}).get(self.current_preset_name, [])
+        num_images = len(preset_data)
 
-        if self.current_page == 5:
-            self.goto_next.disabled = True
-            self.goto_last.disabled = True
-        else:
-            self.goto_next.disabled = False
-            self.goto_last.disabled = False
+        # Navigation buttons
+        self.goto_first.disabled = self.current_page == 1
+        self.goto_previous.disabled = self.current_page == 1
+        self.goto_next.disabled = self.current_page >= num_images or self.current_page == 5 # Limit to 5 images per preset
+        self.goto_last.disabled = self.current_page >= num_images or self.current_page == 5 # Limit to 5 images per preset
 
-        if self.current_page <= len(await self.get_json_data()):
-            self.delete.disabled = False
-        else:
-            self.delete.disabled = True
+        # Action buttons
+        self.delete.disabled = num_images == 0 or self.current_page > num_images
+        self.edit.disabled = num_images == 0 or self.current_page > num_images
+        self.new.disabled = num_images >= 5 # Limit to 5 images per preset
+        self.rename_preset.disabled = not self.user_data.get("presets") # Disable if no presets exist
+        self.delete_preset.disabled = not self.user_data.get("presets") # Disable if no presets exist
 
-        if self.current_page > len(await self.get_json_data()):
-            self.edit.disabled = True
-        else:
-            self.edit.disabled = False
-
-        if len(await self.get_json_data()) == 5:
-            self.new.disabled = True
-        else:
-            self.new.disabled = False
 
     async def check_author(self, interaction: discord.Interaction):
-        #logger.info(f"Checking: {interaction.user.id} == {self.interaction.user.id}")
         return interaction.user.id == self.interaction.user.id
 
     @discord.ui.button(emoji="⏪",
                         style=discord.ButtonStyle.primary,
-                        label="First Page")
+                        label="First Page", row=1)
     async def goto_first(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
@@ -113,7 +170,7 @@ class VibeTransferView(View):
 
     @discord.ui.button(emoji="⬅️",
                        style=discord.ButtonStyle.primary,
-                       label="Previous Page")
+                       label="Previous Page", row=1)
     async def goto_previous(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
@@ -125,7 +182,7 @@ class VibeTransferView(View):
 
     @discord.ui.button(emoji="➡️",
                        style=discord.ButtonStyle.primary,
-                       label="Next Page")
+                       label="Next Page", row=1)
     async def goto_next(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
@@ -137,49 +194,110 @@ class VibeTransferView(View):
 
     @discord.ui.button(emoji="⏩",
                         style=discord.ButtonStyle.primary,
-                        label="Last Page")
+                        label="Last Page", row=1)
     async def goto_last(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
             await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
             return
         else:
-            self.current_page = 5
+            preset_data = self.user_data.get("presets", {}).get(self.current_preset_name, [])
+            self.current_page = len(preset_data) if len(preset_data) <= 5 else 5 # Go to the last image page, max 5
             await self.update_message()
 
     @discord.ui.button(emoji="🗑️",
                         style=discord.ButtonStyle.danger,
-                        label="Delete")
+                        label="Delete Image", row=2)
     async def delete(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         if not await self.check_author(interaction):
             await interaction.followup.send("You are not authorized to use this button", ephemeral=True)
             return
         else:
-            await self.delete_json_data()
-            await self.update_message()
+            await self.delete_current_image()
+            await self.update_message(content="Image deleted successfully.")
 
     @discord.ui.button(emoji="✏️",
                         style=discord.ButtonStyle.secondary,
-                        label="Edit")
+                        label="Edit Image", row=2)
     async def edit(self, interaction: discord.Interaction, button: Button):
         if not await self.check_author(interaction):
             await interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
             return
         else:
-            modal = EditModal(title=f"Image {self.current_page} Vibe Transfer Edit", page=self.current_page, update_message=self.update_message)
-            await interaction.response.send_modal(modal)
+            preset_data = self.user_data.get("presets", {}).get(self.current_preset_name, [])
+            if self.current_page <= len(preset_data):
+                current_image_data = preset_data[self.current_page - 1]
+                modal = EditModal(
+                    title=f"Image {self.current_page} Vibe Transfer Edit",
+                    page=self.current_page,
+                    update_message=self.update_message,
+                    current_info=current_image_data.get("info_extracted"),
+                    current_strength=current_image_data.get("ref_strength"),
+                    view=self # Pass the view to the modal
+                )
+                await interaction.response.send_modal(modal)
+            else:
+                 await interaction.response.send_message("No image to edit on this page.", ephemeral=True)
+
 
     @discord.ui.button(emoji="🆕",
                         style=discord.ButtonStyle.primary,
-                        label="New")
+                        label="Add Image", row=2)
     async def new(self, interaction: discord.Interaction, button: Button):
         if not await self.check_author(interaction):
             await interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
             return
         else:
-            modal = AddModal(title=f"Image {len(await self.get_json_data()) + 1} Vibe Transfer Add", update_message=self.update_message) 
-            await interaction.response.send_modal(modal)
+            preset_data = self.user_data.get("presets", {}).get(self.current_preset_name, [])
+            if len(preset_data) < 5:
+                modal = AddModal(
+                    title=f"Add Image to Preset `{self.current_preset_name}`",
+                    update_message=self.update_message,
+                    view=self # Pass the view to the modal
+                )
+                await interaction.response.send_modal(modal)
+            else:
+                 await interaction.response.send_message("This preset already has the maximum of 5 images.", ephemeral=True)
+
+    @discord.ui.button(emoji="✏️",
+                        style=discord.ButtonStyle.secondary,
+                        label="Rename Preset", row=3)
+    async def rename_preset(self, interaction: discord.Interaction, button: Button):
+        if not await self.check_author(interaction):
+            await interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            if self.current_preset_name:
+                modal = RenamePresetModal(
+                    title=f"Rename Preset `{self.current_preset_name}`",
+                    current_name=self.current_preset_name,
+                    view=self # Pass the view to the modal
+                )
+                await interaction.response.send_modal(modal)
+            else:
+                 await interaction.response.send_message("No preset selected to rename.", ephemeral=True)
+
+
+    @discord.ui.button(emoji="🗑️",
+                        style=discord.ButtonStyle.danger,
+                        label="Delete Preset", row=3)
+    async def delete_preset(self, interaction: discord.Interaction, button: Button):
+        if not await self.check_author(interaction):
+            await interaction.response.send_message("You are not authorized to use this button", ephemeral=True)
+            return
+        else:
+            if self.current_preset_name:
+                # For simplicity, we'll use a confirmation modal. A simple confirmation button could also work.
+                modal = DeletePresetModal(
+                    title=f"Delete Preset `{self.current_preset_name}`?",
+                    preset_name=self.current_preset_name,
+                    view=self # Pass the view to the modal
+                )
+                await interaction.response.send_modal(modal)
+            else:
+                 await interaction.response.send_message("No preset selected to delete.", ephemeral=True)
+
 
     async def on_timeout(self):
         for child in self.children:
@@ -187,6 +305,78 @@ class VibeTransferView(View):
         embed, file = await self.create_embed()
         message = await self.interaction.edit_original_response(embed=embed, view=self, attachments=[file], content=f"`Timed out, deleting in 10 seconds...`")
         await message.delete(delay=10)
+
+class VibeTransferPresetMenuView(View):
+    def __init__(self, bundle_data: da.BundleData):
+        super().__init__(timeout=600)
+        self.bundle_data = bundle_data
+        self.user_data = {} # Initialize user data
+
+        # Load user data
+        user_id = str(self.bundle_data["interaction"].user.id)
+        user_file_path = f"{USER_VIBE_TRANSFER_DIR}/{user_id}.json"
+        if os.path.exists(user_file_path):
+            with open(user_file_path, "r") as f:
+                self.user_data = json.load(f)
+
+        # Add the preset selection dropdown
+        # Do not set an initial preset name so the dropdown has no default selection
+        if self.user_data.get("presets"):
+             self.add_item(PresetSelect(self.user_data, None)) # Pass None for initial_preset_name
+        else:
+             # Add a disabled select if no presets exist
+             disabled_select = Select(placeholder="No presets available", options=[], disabled=True)
+             self.add_item(disabled_select)
+
+
+    async def send(self, interaction: discord.Interaction):
+        # This view is typically sent as a response to an interaction.
+        # The PresetSelect handles the actual selection and updating the message.
+        # We just need to send the initial message with the view.
+        embed = discord.Embed(
+            title="Select a Vibe Transfer Preset",
+            description="Choose a preset from the dropdown.",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
+
+    async def handle_preset_selection(self, preset_name: str, interaction: discord.Interaction):
+        """Handles the selection of a vibe transfer preset."""
+        # Retrieve the list of images for the selected preset name
+        preset_images_data = self.user_data.get("presets", {}).get(preset_name)
+
+        if isinstance(preset_images_data, list) and preset_images_data:
+            # Get the data for the first image in the preset
+            image_data = preset_images_data[0]
+
+            # Update the bundle_data in the global storage
+            request_id = self.bundle_data["request_id"]
+            if request_id in Globals.select_views_generation_data:
+                updated_bundle_data = Globals.select_views_generation_data[request_id]
+
+                # Update checking_params with the first image's data
+                updated_bundle_data["checking_params"]["vibe_transfer_image"] = image_data.get("image")
+                updated_bundle_data["checking_params"]["vibe_transfer_info_extracted"] = image_data.get("info_extracted")
+                updated_bundle_data["checking_params"]["vibe_transfer_ref_strength"] = image_data.get("ref_strength")
+                updated_bundle_data["checking_params"]["vibe_transfer_switch"] = True # Enable vibe transfer
+
+                Globals.select_views_generation_data[request_id] = updated_bundle_data
+
+                await interaction.followup.send(f"Vibe transfer preset `{preset_name}` applied using the first image. Press 'Go' to generate.", ephemeral=True)
+
+                # Optionally, disable the select menu after selection
+                for item in self.children:
+                    if isinstance(item, Select):
+                        item.disabled = True
+                await interaction.edit_original_response(view=self)
+
+            else:
+                await interaction.followup.send("Could not find generation data for this request.", ephemeral=True)
+        elif isinstance(preset_images_data, list) and not preset_images_data:
+             await interaction.followup.send(f"Preset `{preset_name}` is empty.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"Preset `{preset_name}` not found or data format is incorrect.", ephemeral=True)
+
 
 class RemixView(View):
     def __init__(self, bundle_data: da.BundleData, forward_channel: discord.TextChannel):
@@ -217,7 +407,7 @@ class RemixView(View):
         new_data["message"] = await interaction.followup.send("♻️ Seeding ♻️")
         from core.queuehandler import nai_queue
         from core.queuehandler import NAIQueue
-        nai_queue: NAIQueue 
+        nai_queue: NAIQueue
         await nai_queue.add_to_queue(new_data)
 
     @discord.ui.button(emoji="🎨",
@@ -542,8 +732,8 @@ class SelectMenu(discord.ui.Select):
                 description="Basically dynamic thresholding",
             ),
             discord.SelectOption(
-                label="vibe_transfer_switch",
-                description="Vibe transfer switch",
+                label="vibe_transfer_preset",
+                description="Select a vibe transfer preset",
             ),
         ]
         super().__init__(placeholder="Select to edit", min_values=1, max_values=1, options=options)
@@ -566,15 +756,20 @@ class SelectMenu(discord.ui.Select):
                 await interaction.response.send_message(view=SMEAMenuView(self.bundle_data), ephemeral=True)
             elif self.values[0] == "model":
                 await interaction.response.send_message(view=ModelMenuView(self.bundle_data), ephemeral=True)
-            elif self.values[0] in ["quality_toggle", "prompt_conversion_toggle", "upscale", "vibe_transfer_switch", "decrisper"]:
+            elif self.values[0] in ["quality_toggle", "prompt_conversion_toggle", "upscale", "decrisper"]:
                 await interaction.response.send_message(view=TrueFalseMenuView(self.bundle_data, name=self.values[0]), ephemeral=True)
             elif self.values[0] == "undesired_content_presets":
                 await interaction.response.send_message(view=UndesiredContentMenuView(self.bundle_data), ephemeral=True)
+            elif self.values[0] == "vibe_transfer_preset":
+                preset_menu_view = VibeTransferPresetMenuView(self.bundle_data)
+                await preset_menu_view.send(interaction)
 
 class SelectMenuView(View):
     def __init__(self, bundle_data: da.BundleData):
         super().__init__(timeout=600)
         self.bundle_data = bundle_data
+        # Store the initial bundle_data in the global dictionary for later modification
+        Globals.select_views_generation_data[self.bundle_data["request_id"]] = self.bundle_data.copy()
         self.add_item(SelectMenu(self.bundle_data))
 
     async def send(self):
@@ -637,7 +832,7 @@ class SelectMenuView(View):
             except Exception as e:
                 logger.error(f"Error while adding to queue: {e}")
                 await message.edit(content="❌ Error while adding to queue ❌", delete_after=10)
-    
+
     async def on_timeout(self):
         self.stop()
         Globals.select_views.pop(self.bundle_data["request_id"])

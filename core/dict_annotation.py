@@ -22,11 +22,12 @@ class Checking_Params(TypedDict, total=False):
     upscale: bool
     dynamic_thresholding: bool
     skip_cfg_above_sigma: Union[bool, float]
-    vibe_transfer_switch: bool
+    vibe_transfer_preset_name: str # Added for vibe transfer preset
 
 class Params(TypedDict, total=False):
     positive: str
     width: int
+    vibe_transfer_preset: str # Added for vibe transfer preset name
     height: int
     steps: int
     cfg: float
@@ -39,7 +40,6 @@ class Params(TypedDict, total=False):
     upscale: bool
     dynamic_thresholding: bool
     skip_cfg_above_sigma: float
-    vibe_transfer_switch: bool
 
 class Director_Tools_Params(TypedDict, total=False):
     width: int

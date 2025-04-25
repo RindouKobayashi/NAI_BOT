@@ -15,7 +15,7 @@ load_dotenv()
 
 branch = os.getenv("GITHUB_BRANCH", 'main')
 
-CHANGELOG = "Added NAI preset saving and loading"
+CHANGELOG = "Added vibe_transfer_preset, stats tracking, and leaderboard."
     
 if branch == 'dev':
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")

@@ -119,21 +119,18 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
 
                 #logger.info(f"Parameters: {nai_params}")
 
-                if bundle_data['params']['vibe_transfer_switch']:
-                    # Extract image, info and strength value from user database
-                    user_file_path = f"{settings.USER_VIBE_TRANSFER_DIR}/{interaction.user.id}.json"
+                # Extract image, info and strength value from user database if vibe_transfer_preset is provided
+                vibe_transfer_data = bundle_data['params'].get('vibe_transfer_data')
+                if vibe_transfer_data:
                     nai_params['reference_image_multiple'] = []
                     nai_params['reference_information_extracted_multiple'] = []
                     nai_params['reference_strength_multiple'] = []
 
-                    if Path(user_file_path).exists():
-                        with open(user_file_path, "r") as user_file:
-                            user_data = json.load(user_file)
-                            for entry in user_data:
-                                # Append image, info_extracted and ref_strength to nai_params
-                                nai_params['reference_image_multiple'].append(entry['image'])
-                                nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
-                                nai_params['reference_strength_multiple'].append(entry['ref_strength'])
+                    for entry in vibe_transfer_data:
+                        # Append image, info_extracted and ref_strength to nai_params
+                        nai_params['reference_image_multiple'].append(entry['image'])
+                        nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
+                        nai_params['reference_strength_multiple'].append(entry['ref_strength'])
 
                 # random chance of special message happening (1 in 4) to inform about new nai model 4
                 if random.randint(1, 4) == 1:
@@ -162,7 +159,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     upscale=bundle_data['params']['upscale'],
                     decrisper=bundle_data['params']['dynamic_thresholding'],
                     variety_plus=bundle_data['params']['skip_cfg_above_sigma'],
-                    vibe_transfer=bundle_data['params']['vibe_transfer_switch'],
+                    vibe_transfer_used=bool(vibe_transfer_data), # Pass boolean indicating if vibe transfer was used
                     undesired_content_preset=bundle_data['checking_params']['undesired_content_presets'] # Use the selected preset name
                 )
 
@@ -375,6 +372,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     result=generation_result
                 )
                 stats_manager.add_generation(generation_history)
+                stats_manager.save_data() # Save stats on failure
 
             if bundle_data['number_of_tries'] > 0:
                 reply_content = f"⚠️`{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
