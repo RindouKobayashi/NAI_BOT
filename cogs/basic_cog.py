@@ -115,40 +115,7 @@ class BASIC(commands.Cog):
         await bot_owner.send(f"Feedback from {interaction.user} : `{feedback}`\nLink to person: [{interaction.user.display_name}](<https://discord.com/users/{interaction.user.id}>) ")
         await interaction.response.send_message("Thank you for your feedback!", ephemeral=True, delete_after=20)
 
-    @app_commands.command(name="stats", description="Shows how much NAI generations you have done")
-    async def stats(self, interaction: discord.Interaction, ephemeral: bool = True):
-        """Shows how much NAI generations you have done"""
-        logger.info(f"COMMAND 'STATS' USED BY: {interaction.user} ({interaction.user.id})")
-        # Get stats from json file
-        with open(settings.STATS_JSON, "r") as f:
-            stats = json.load(f)
-        # Sort users by generation count to determine ranking
-        sorted_users = sorted(stats.items(), key=lambda x: int(x[1]), reverse=True)
         
-        # Find user's rank
-        user_stats = stats.get(str(interaction.user.id), 0)
-        user_rank = None
-        for index, (user_id, count) in enumerate(sorted_users, 1):
-            if user_id == str(interaction.user.id):
-                user_rank = index
-                break
-        
-        # Get info about next rank
-        rank_text = ""
-        if user_rank:
-            rank_text = f" (Rank `#{user_rank}`)"
-            if user_rank > 1:  # If not rank 1, show generations needed for next rank
-                next_rank_user, next_rank_count = sorted_users[user_rank - 2]  # -2 because rank is 1-based and we want previous index
-                if int(next_rank_count) == int(user_stats):
-                    rank_text += f"\nYou are tied for rank `#{user_rank - 1}`. You need `1` more generation to overtake!"
-                else:
-                    gens_needed = int(next_rank_count) - int(user_stats) + 1
-                    rank_text += f"\nYou need `{gens_needed}` more generations to overtake rank `#{user_rank - 1}`"
-        
-        await interaction.response.send_message(f"You have done `{user_stats}` NAI generations{rank_text}.", ephemeral=ephemeral)
-        
-
-
     
 
 async def setup(bot: commands.Bot):
