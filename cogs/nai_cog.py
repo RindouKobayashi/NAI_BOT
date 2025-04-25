@@ -24,7 +24,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use Agg backend to avoid needing GUI
 import matplotlib.pyplot as plt
 import io
-from datetime import datetime # Import datetime here
+from datetime import datetime, timezone # Import datetime and timezone here
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
@@ -711,9 +711,10 @@ class NAI(commands.Cog):
 
         if first_gen_str and last_gen_str:
             try:
-                first_gen_date = datetime.fromisoformat(first_gen_str)
-                last_gen_date = datetime.fromisoformat(last_gen_str)
+                first_gen_date = datetime.fromisoformat(first_gen_str).astimezone(timezone.utc)
+                last_gen_date = datetime.fromisoformat(last_gen_str).astimezone(timezone.utc)
 
+                # Compare timezone-aware datetimes
                 if first_gen_date <= last_gen_date:
                     display_first_gen = first_gen_str[:10]
                     display_last_gen = last_gen_str[:10]
