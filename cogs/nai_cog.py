@@ -165,7 +165,7 @@ class NAI(commands.Cog):
                 seed = 0
             if not model:
                 model = "nai-diffusion-3"
-            if not quality_toggle:
+            if quality_toggle is None:
                 quality_toggle = True
             if not undesired_content_presets:
                 undesired_content_presets = "heavy"
