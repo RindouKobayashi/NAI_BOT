@@ -6,3 +6,4 @@ argon2-cffi
 numpy
 datetime
 gradio_client
+matplotlib
