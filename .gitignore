@@ -11,3 +11,7 @@ database/user_nai_presets
 database/stats.json
 database/wordle_stats.json
 database/wordle_history.json
+database/leaderboard_opt_status.json
+database/stats/nai_history.json
+database/stats/global_stats/nai_global_stats.json
+database/stats/user_stats/nai_user_stats.json

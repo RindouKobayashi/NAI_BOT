@@ -19,9 +19,20 @@ from core.viewhandler import VibeTransferView
 from core.checking_params import check_params
 import core.dict_annotation as da
 from core.nai_vars import Nai_vars
+from core.nai_stats import stats_manager
+import matplotlib
+matplotlib.use('Agg')  # Use Agg backend to avoid needing GUI
+import matplotlib.pyplot as plt
+import io
+from datetime import datetime # Import datetime here
 
 # Import utility functions
 from core.nai_utils import prompt_to_nai, calculate_resolution
+
+# Common colors for embeds
+BLUE = discord.Color.blue()
+GREEN = discord.Color.green()
+GOLD = discord.Color.gold()
 
 class NAI(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -32,6 +43,7 @@ class NAI(commands.Cog):
             raise RuntimeError("Please ensure that NAI_ACCESS_TOKEN is set in your .env file.")
         
         self.output_dir = "nai_output"
+        self.leaderboard_opt_file = Path("database/leaderboard_opt_status.json")
 
     @app_commands.command(name="nai", description="Generate an image using NovelAI")
     @app_commands.allowed_installs(guilds=True, users=True)
@@ -63,14 +75,14 @@ class NAI(commands.Cog):
         vibe_transfer_switch="Vibe transfer switch (default: False)",
         load_preset="Load a preset for NAI generation"
     )
-    async def nai(self, interaction: discord.Interaction, 
-                  positive: str, 
-                  negative: str = None, 
-                  width: int = None, 
-                  height: int = None, 
-                  steps: int = None, 
-                  cfg: float = None, 
-                  sampler: app_commands.Choice[str] = None, 
+    async def nai(self, interaction: discord.Interaction,
+                  positive: str,
+                  negative: str = None,
+                  width: int = None,
+                  height: int = None,
+                  steps: int = None,
+                  cfg: float = None,
+                  sampler: app_commands.Choice[str] = None,
                   noise_schedule: app_commands.Choice[str] = None,
                   smea: app_commands.Choice[str] = None,
                   seed: int = None,
@@ -93,7 +105,7 @@ class NAI(commands.Cog):
                 await interaction.response.send_message(response, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
                 return
             await interaction.response.defer()
-            
+
             await interaction.followup.send("Checking parameters...")
 
             # Load the preset if specified
@@ -172,7 +184,7 @@ class NAI(commands.Cog):
             if not prompt_conversion_toggle:
                 prompt_conversion_toggle = False
             if not upscale:
-                upscale = False 
+                upscale = False
             if not decrisper:
                 decrisper = False
             if not variety_plus:
@@ -204,7 +216,7 @@ class NAI(commands.Cog):
 
             checking_params = await check_params(checking_params, interaction)
 
-            # Unpack the parameters   
+            # Unpack the parameters
 
             params: da.Params = da.create_with_defaults(
                 da.Params,
@@ -238,7 +250,7 @@ class NAI(commands.Cog):
                 params=params,
                 checking_params=checking_params,
             )
-            
+
             # Add the request to the queue
             success = await nai_queue.add_to_queue(bundle_data)
 
@@ -256,7 +268,7 @@ class NAI(commands.Cog):
         def search_current_term(query):
             terms = query.split(',')
             current_term = terms[-1].strip().lower()
-            
+
             if not current_term:
                 return []
 
@@ -268,25 +280,25 @@ class NAI(commands.Cog):
             return results[:25]  # Limit to 25 results as per Discord's limit
 
         results = await asyncio.to_thread(search_current_term, current)
-        
+
         # Prepare the choices, including the parts of the query that are already typed
         prefix = ','.join(current.split(',')[:-1]).strip()
         if prefix:
             prefix += ', '
-        
+
         valid_choices = [
             app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}"[:100])
             for item in results
             if len(item) > 0  # Ensure item is not empty
         ]
-        
+
         return valid_choices
     @nai.autocomplete('negative')
     async def nai_positive_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         def search_current_term(query):
             terms = query.split(',')
             current_term = terms[-1].strip().lower()
-            
+
             if not current_term:
                 return []
 
@@ -298,20 +310,20 @@ class NAI(commands.Cog):
             return results[:25]  # Limit to 25 results as per Discord's limit
 
         results = await asyncio.to_thread(search_current_term, current)
-        
+
         # Prepare the choices, including the parts of the query that are already typed
         prefix = ','.join(current.split(',')[:-1]).strip()
         if prefix:
             prefix += ', '
-        
+
         valid_choices = [
             app_commands.Choice(name=f"{prefix}{item}"[:100], value=f"{prefix}{item}"[:100])
             for item in results
             if len(item) > 0  # Ensure item is not empty
         ]
-        
+
         return valid_choices
-    
+
     @nai.autocomplete('load_preset')
     async def nai_load_preset_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         user_id = str(interaction.user.id)
@@ -319,7 +331,7 @@ class NAI(commands.Cog):
 
         if not user_nai_presets_dir.exists():
             return []
-        
+
         with open(user_nai_presets_dir, "r") as f:
             user_presets = json.load(f)
 
@@ -330,7 +342,7 @@ class NAI(commands.Cog):
         ]
 
         return results[:25]
-    
+
     @app_commands.command(name="save_nai_preset", description="Save your custom NAI generation settings as a preset")
     @app_commands.choices(
         sampler=Nai_vars.samplers_choices,
@@ -361,12 +373,12 @@ class NAI(commands.Cog):
     )
     async def save_nai_preset(self, interaction: discord.Interaction,
                               preset_name: str,
-                              negative: str = None, 
-                              width: int = Nai_vars.width.default, 
-                              height: int = Nai_vars.height.default, 
-                              steps: int = Nai_vars.steps.default, 
-                              cfg: float = Nai_vars.cfg.default, 
-                              sampler: app_commands.Choice[str] = "k_euler", 
+                              negative: str = None,
+                              width: int = Nai_vars.width.default,
+                              height: int = Nai_vars.height.default,
+                              steps: int = Nai_vars.steps.default,
+                              cfg: float = Nai_vars.cfg.default,
+                              sampler: app_commands.Choice[str] = "k_euler",
                               noise_schedule: app_commands.Choice[str] = "native",
                               smea: app_commands.Choice[str] = "None",
                               seed: int = 0,
@@ -647,6 +659,653 @@ class NAI(commands.Cog):
         pagination_view = VibeTransferView(interaction=interaction)
         await pagination_view.send()
 
+    @app_commands.command(name="nai-stats", description="View your NAI generation statistics (Bot owner can view other users' stats)")
+    @app_commands.describe(
+        user="The user whose stats you want to view (Owner only)",
+        ephemeral="Whether the reply should be ephemeral (default: False)"
+    )
+    async def nai_stats(self, interaction: discord.Interaction, user: discord.User = None, ephemeral: bool = False):
+        """View detailed NAI generation statistics for a user"""
+        logger.info(f"COMMAND 'NAI-STATS' USED BY: {interaction.user} ({interaction.user.id})")
+
+        # Check if a user was specified and the interaction user is not the owner
+        if user is not None and interaction.user.id != settings.BOT_OWNER_ID:
+            await interaction.response.send_message("Only the bot owner can view other users' statistics.", ephemeral=True)
+            return
+
+        target_user = user or interaction.user
+        
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        # Get user stats
+        user_stats = stats_manager.get_user_stats(target_user.id)
+        if not user_stats or user_stats.total_generations == 0:
+            await interaction.followup.send(f"No generation statistics found for {target_user.mention}!", ephemeral=ephemeral)
+            return
+
+        # Create main embed
+        embed = discord.Embed(
+            title=f"🎨 NAI Statistics for {target_user.name}",
+            color=BLUE
+        )
+        
+        # Basic stats
+        success_rate = user_stats.successful_generations / user_stats.total_generations * 100
+        avg_time = user_stats.total_generation_time / user_stats.total_generations
+        
+        # Generation stats
+        embed.add_field(
+            name="Generation Stats",
+            value=f"Total Generations: `{user_stats.total_generations}`\n"
+                  f"Successful Generations: `{user_stats.successful_generations}`\n"
+                  f"Success Rate: `{success_rate:.1f}%`",
+            inline=True
+        )
+
+        # Time stats
+        first_gen_str = user_stats.first_generation
+        last_gen_str = user_stats.last_generation
+
+        display_first_gen = 'N/A'
+        display_last_gen = 'N/A'
+
+        if first_gen_str and last_gen_str:
+            try:
+                first_gen_date = datetime.fromisoformat(first_gen_str)
+                last_gen_date = datetime.fromisoformat(last_gen_str)
+
+                if first_gen_date <= last_gen_date:
+                    display_first_gen = first_gen_str[:10]
+                    display_last_gen = last_gen_str[:10]
+                else:
+                    # Dates are swapped, display them in chronological order
+                    display_first_gen = last_gen_str[:10]
+                    display_last_gen = first_gen_str[:10]
+            except ValueError:
+                # Handle invalid date format if necessary
+                display_first_gen = f"Error: {first_gen_str[:10]}" if first_gen_str else 'N/A'
+                display_last_gen = f"Error: {last_gen_str[:10]}" if last_gen_str else 'N/A'
+        elif first_gen_str:
+             display_first_gen = first_gen_str[:10]
+        elif last_gen_str:
+             display_last_gen = last_gen_str[:10]
+
+        embed.add_field(
+            name="Time Stats",
+            value=f"Total Time: `{user_stats.total_generation_time:.1f}s`\n"
+                  f"Average Time: `{avg_time:.1f}s`\n"
+                  f"First Gen: `{display_first_gen}`\n"
+                  f"Last Gen: `{display_last_gen}`",
+            inline=True
+        )
+
+        # Most used models
+        models = sorted(user_stats.models_used.items(), key=lambda x: x[1], reverse=True)[:3]
+        embed.add_field(
+            name="Top Models",
+            value="\n".join(f"{model}: `{count}`" for model, count in models) or "No data",
+            inline=True
+        )
+        
+        # Most used sizes
+        sizes = sorted(user_stats.most_used_sizes.items(), key=lambda x: x[1], reverse=True)[:5]
+        embed.add_field(
+            name="Top Sizes",
+            value="\n".join(f"{size}: `{count}`" for size, count in sizes) or "No data",
+            inline=True
+        )
+        
+        # Most used samplers
+        samplers = sorted(user_stats.samplers_used.items(), key=lambda x: x[1], reverse=True)[:3]
+        embed.add_field(
+            name="Top Samplers",
+            value="\n".join(f"{str(sampler)}: `{count}`" for sampler, count in samplers) or "No data",
+            inline=True
+        )
+        
+        # Calculate most used UC preset
+        most_used_preset = "N/A"
+        if user_stats.preset_usage:
+            try:
+                most_used_preset = max(user_stats.preset_usage.items(), key=lambda item: item[1])[0]
+            except ValueError: # Handle case where dict is empty but not None
+                 most_used_preset = "N/A"
+
+
+        # Calculate top user UC presets
+        top_user_presets = sorted(user_stats.preset_usage.items(), key=lambda x: x[1], reverse=True)[:3]
+        top_user_presets_str = "\n".join(f"{preset}: `{count}`" for preset, count in top_user_presets) or "No data"
+
+        # Feature usage
+        embed.add_field(
+            name="Feature Usage",
+            value=f"Upscale Count: `{user_stats.upscale_count}`\n"
+                  f"Vibe Transfer Count: `{user_stats.vibe_transfer_count}`\n"
+                  f"Quality Toggle Count: `{user_stats.quality_toggle_count}`\n"
+                  f"Decrisper Count: `{user_stats.decrisper_count}`\n"
+                  f"Variety Plus Count: `{user_stats.variety_plus_count}`\n"
+                  f"Top UC Presets:\n{top_user_presets_str}",
+            inline=True
+        )
+
+        # Create monthly activity graph
+        if user_stats.monthly_usage:
+            plt.figure(figsize=(10, 4))
+            # Get months and sort them chronologically
+            sorted_months_ym = sorted(user_stats.monthly_usage.keys())
+            # Select the last 6 months
+            months_to_plot_ym = sorted_months_ym[-6:]
+            # Get counts for the selected months
+            counts = [user_stats.monthly_usage[m] for m in months_to_plot_ym]
+            
+            # Format month strings to "Month Year"
+            formatted_months = [datetime.strptime(m, "%Y-%m").strftime("%b %Y") for m in months_to_plot_ym]
+
+            plt.bar(range(len(months_to_plot_ym)), counts)
+            plt.xticks(range(len(months_to_plot_ym)), formatted_months, rotation=45, ha='right') # Rotate labels for readability
+            plt.title("Monthly Activity")
+            plt.xlabel("Month")
+            plt.ylabel("Generations")
+            plt.tight_layout() # Adjust layout to prevent labels overlapping
+
+            # Save plot to bytes
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            plt.close()
+            
+            # Create file from bytes
+            file = discord.File(buf, filename="activity.png")
+            embed.set_image(url="attachment://activity.png")
+            
+            await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @app_commands.command(name="nai-history", description="View your recent NAI generations (Owner only)")
+    @app_commands.describe(
+        user="The user whose history you want to view (Owner only)",
+        ephemeral="Whether the reply should be ephemeral (default: False)"
+    )
+    async def nai_history(self, interaction: discord.Interaction, user: discord.User = None, ephemeral: bool = False):
+        """View recent generation history for a user"""
+        logger.info(f"COMMAND 'NAI-HISTORY' USED BY: {interaction.user} ({interaction.user.id})")
+
+        if interaction.user.id != settings.BOT_OWNER_ID:
+            await interaction.response.send_message("This command is currently in testing and only available to the bot owner.", ephemeral=True)
+            return
+
+        target_user = user or interaction.user
+        
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        # Get user history
+        history = stats_manager.get_user_history(target_user.id, limit=3)  # Last 3 generations
+        if not history:
+            await interaction.followup.send(f"No generation history found for {target_user.mention}!", ephemeral=ephemeral)
+            return
+
+        target_user = user or interaction.user
+        
+        await interaction.response.defer()
+        
+        # Get user history
+        history = stats_manager.get_user_history(target_user.id, limit=3)  # Last 3 generations
+        if not history:
+            await interaction.followup.send(f"No generation history found for {target_user.mention}!")
+            return
+        
+        embed = discord.Embed(
+            title=f"🎨 Recent Generations for {target_user.name}",
+            color=BLUE
+        )
+        
+        for i, gen in enumerate(history):
+            status = "✅" if gen.result.success else "❌"
+            params = gen.parameters
+            
+            # Construct the /nai command string
+            command_str = f"/nai positive: \"{params.positive_prompt}\""
+            if params.negative_prompt:
+                command_str += f" negative: \"{params.negative_prompt}\""
+            command_str += f" width: {params.width} height: {params.height} steps: {params.steps} cfg: {params.cfg}"
+            command_str += f" sampler: {params.sampler} noise_schedule: {params.noise_schedule}"
+            # Only include smea if it's a specific mode (not None)
+            if params.smea in ["SMEA", "SMEA+DYN"]:
+                 command_str += f" smea: {params.smea}"
+            command_str += f" seed: {params.seed}"
+            command_str += f" model: {params.model}"
+            # Only include optional parameters if they are not their default values or are explicitly set
+            if params.quality_toggle is not None and params.quality_toggle != True: # Assuming default is True
+                 command_str += f" quality_toggle: {params.quality_toggle}"
+            if params.undesired_content_preset and params.undesired_content_preset != "heavy": # Assuming default is heavy
+                 command_str += f" undesired_content_presets: {params.undesired_content_preset}"
+            if params.prompt_conversion is not None and params.prompt_conversion != False: # Assuming default is False
+                 command_str += f" prompt_conversion_toggle: {params.prompt_conversion}"
+            if params.upscale is not None and params.upscale != False: # Assuming default is False
+                 command_str += f" upscale: {params.upscale}"
+            if params.decrisper is not None and params.decrisper != False: # Assuming default is False
+                 command_str += f" decrisper: {params.decrisper}"
+            if params.variety_plus is not None and params.variety_plus != False: # Assuming default is False
+                 command_str += f" variety_plus: {params.variety_plus}"
+            if params.vibe_transfer is not None and params.vibe_transfer != False: # Assuming default is False
+                 command_str += f" vibe_transfer_switch: {params.vibe_transfer}"
+
+
+            # Truncate prompts if too long for embed field value
+            display_positive = params.positive_prompt
+            display_negative = params.negative_prompt or "N/A"
+            max_prompt_length = 200 # Arbitrary limit to keep embed readable
+            if len(display_positive) > max_prompt_length:
+                display_positive = display_positive[:max_prompt_length] + "..."
+            if len(display_negative) > max_prompt_length:
+                display_negative = display_negative[:max_prompt_length] + "..."
+
+            value = (
+                f"Status: {status}\n"
+                f"Time: `{gen.generation_time:.1f}s`\n"
+                f"Prompt: ```{display_positive}```\n"
+                f"Negative Prompt: ```{display_negative}```\n"
+                f"Model: `{params.model}`\n"
+                f"Size: `{params.width}x{params.height}`\n"
+                f"Seed: `{params.seed}`\n"
+                f"Sampler: `{params.sampler}`\n"
+                f"Steps: `{params.steps}`\n"
+                f"CFG: `{params.cfg}`\n"
+                f"UC Preset: `{params.undesired_content_preset or 'N/A'}`"
+            )
+            
+            if gen.result.error_message:
+                value += f"\nError: `{gen.result.error_message}`"
+
+            # Truncate value if it exceeds Discord's embed field value limit (1024 characters)
+            if len(value) > 1024:
+                value = value[:1021] + "..."
+
+            embed.add_field(
+                name=f"Generation {len(history) - i} ({gen.timestamp[:19]})",  # Show up to seconds, number from most recent
+                value=value,
+                inline=False
+            )
+        
+        await interaction.followup.send(embed=embed)
+
+        # Send separate messages for the full command strings
+        for i, gen in enumerate(history):
+            params = gen.parameters
+            
+            # Construct the full /nai command string
+            command_str = f"/nai positive: \"{params.positive_prompt}\""
+            if params.negative_prompt:
+                command_str += f" negative: \"{params.negative_prompt}\""
+            command_str += f" width: {params.width} height: {params.height} steps: {params.steps} cfg: {params.cfg}"
+            command_str += f" sampler: {params.sampler} noise_schedule: {params.noise_schedule}"
+            if params.smea and params.smea != "None":
+                 command_str += f" smea: {params.smea}"
+            command_str += f" seed: {params.seed}"
+            command_str += f" model: {params.model}"
+            # Only include optional parameters if they are not their default values or are explicitly set
+            if params.quality_toggle is not None and params.quality_toggle != True: # Assuming default is True
+                 command_str += f" quality_toggle: {params.quality_toggle}"
+            if params.undesired_content_preset and params.undesired_content_preset != "heavy": # Assuming default is heavy
+                 command_str += f" undesired_content_presets: {params.undesired_content_preset}"
+            if params.prompt_conversion is not None and params.prompt_conversion != False: # Assuming default is False
+                 command_str += f" prompt_conversion_toggle: {params.prompt_conversion}"
+            if params.upscale is not None and params.upscale != False: # Assuming default is False
+                 command_str += f" upscale: {params.upscale}"
+            if params.decrisper is not None and params.decrisper != False: # Assuming default is False
+                 command_str += f" decrisper: {params.decrisper}"
+            if params.variety_plus is not None and params.variety_plus != False: # Assuming default is False
+                 command_str += f" variety_plus: {params.variety_plus}"
+            if params.vibe_transfer is not None and params.vibe_transfer != False: # Assuming default is False
+                 command_str += f" vibe_transfer_switch: {params.vibe_transfer}"
+
+            await interaction.followup.send(f"Command for Generation {len(history) - i}:\n```{command_str}```", ephemeral=ephemeral)
+
+    @app_commands.command(name="nai-leaderboard", description="View global NAI generation leaderboard")
+    @app_commands.describe(
+        ephemeral="Whether the reply should be ephemeral (default: False)"
+    )
+    async def nai_leaderboard(self, interaction: discord.Interaction, ephemeral: bool = False):
+        """View global generation leaderboard"""
+        logger.info(f"COMMAND 'NAI-LEADERBOARD' USED BY: {interaction.user} ({interaction.user.id})")
+
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        # Get all user stats and sort by total generations
+        all_user_stats = list(stats_manager.user_stats.values())
+        sorted_users = sorted(all_user_stats, key=lambda x: x.total_generations, reverse=True)
+
+        if not sorted_users:
+            await interaction.followup.send("No user statistics available yet!", ephemeral=ephemeral)
+            return
+
+        # Find the invoking user's rank and stats
+        invoking_user_id = interaction.user.id
+        invoking_user_stats = None
+        invoking_user_rank = -1 # -1 means not found
+
+        for i, user_stats in enumerate(sorted_users):
+            if user_stats.user_id == invoking_user_id:
+                invoking_user_stats = user_stats
+                invoking_user_rank = i + 1
+                break
+
+        # Read opt-in status
+        opt_status = {}
+        if self.leaderboard_opt_file.exists():
+            try:
+                with open(self.leaderboard_opt_file, "r") as f:
+                    opt_status = json.load(f)
+            except json.JSONDecodeError:
+                logger.error(f"Error decoding JSON from {self.leaderboard_opt_file}. Proceeding with default (opt-out) for all.")
+                opt_status = {}
+
+        # Create main embed
+        embed = discord.Embed(
+            title="🏆 NAI Generation Leaderboard",
+            color=GOLD
+        )
+
+        # --- Top 10 Section ---
+        top_users = sorted_users[:10]
+        leaderboard_value = ""
+        if top_users:
+            for i, user_stats in enumerate(top_users):
+                user_id_str = str(user_stats.user_id)
+                # Determine user display based on if it's the invoking user, or opt-in status
+                user_display = "Anonymous User" # Default display for opted-out users
+                if user_stats.user_id == invoking_user_id and not ephemeral and not opt_status.get(str(invoking_user_id), False):
+                    user_display = "Anonymous User"
+                elif user_stats.user_id == invoking_user_id:
+                     user_display = interaction.user.mention
+                elif opt_status.get(user_id_str, False): # Check if user opted in (default is False)
+                     user_obj = self.bot.get_user(user_stats.user_id)
+                     user_display = user_obj.mention if user_obj else f"<@{user_stats.user_id}>"
+
+
+                leaderboard_value += f"**{i+1}. {user_display}** `{user_stats.total_generations}` generations\n"
+        else:
+            leaderboard_value = "No users in the leaderboard yet."
+
+        embed.add_field(
+            name="Top 10 Generators",
+            value=leaderboard_value,
+            inline=False
+        )
+
+        # --- Invoking User's Section ---
+        user_section_value = ""
+        # Only show "Your Stats" if ephemeral is True OR the invoking user is opted in OR is the bot owner
+        invoking_user_id_str = str(invoking_user_id)
+        if ephemeral or opt_status.get(invoking_user_id_str, False) or invoking_user_id == self.bot.owner_id:
+            if invoking_user_stats:
+                user_section_value += f"Your Rank: **#{invoking_user_rank}**\n"
+                user_section_value += f"Your Generations: `{invoking_user_stats.total_generations}`\n"
+
+                # Calculate generations needed for next rank
+                if invoking_user_rank > 1:
+                    next_rank_user_stats = sorted_users[invoking_user_rank - 2] # Rank is 1-based, index is 0-based
+                    next_rank_user_id_str = str(next_rank_user_stats.user_id)
+                    next_rank_user_display = "Anonymous User"
+                    if next_rank_user_stats.user_id == invoking_user_id and not ephemeral and not opt_status.get(str(invoking_user_id), False):
+                         next_rank_user_display = "Anonymous User"
+                    elif next_rank_user_stats.user_id == invoking_user_id:
+                         next_rank_user_display = interaction.user.mention
+                    elif opt_status.get(next_rank_user_id_str, False): # Check if user opted in (default is False)
+                         user_above_obj = self.bot.get_user(next_rank_user_stats.user_id)
+                         next_rank_user_display = user_above_obj.mention if user_above_obj else f"<@{next_rank_user_stats.user_id}>"
+
+
+                    gens_needed = next_rank_user_stats.total_generations - invoking_user_stats.total_generations
+                    user_section_value += f"Generations needed for next rank (to surpass {next_rank_user_display}): `{gens_needed}`\n"
+                else:
+                    user_section_value += "You are currently Rank #1!\n"
+
+                # Include users above and below if not in top 10
+                if invoking_user_rank > 10:
+                    user_section_value += "\nNearby Ranks:\n"
+                    # User above (if exists)
+                    if invoking_user_rank > 1:
+                        user_above_stats = sorted_users[invoking_user_rank - 2]
+                        user_above_id_str = str(user_above_stats.user_id)
+                        user_above_display = "Anonymous User"
+                        if user_above_stats.user_id == invoking_user_id and not ephemeral and not opt_status.get(str(invoking_user_id), False):
+                             user_above_display = "Anonymous User"
+                        elif user_above_stats.user_id == invoking_user_id:
+                             user_above_display = interaction.user.mention
+                        elif opt_status.get(user_above_id_str, False): # Check if user opted in (default is False)
+                             user_above_obj = self.bot.get_user(user_above_stats.user_id)
+                             user_above_display = user_above_obj.mention if user_above_obj else f"<@{user_above_stats.user_id}>"
+
+                    user_section_value += f"**#{invoking_user_rank - 1}. {user_above_display}** `{invoking_user_stats.total_generations}` generations\n"
+
+                    # Invoking user
+                    invoking_user_display_nearby = interaction.user.mention
+                    if not ephemeral and not opt_status.get(str(invoking_user_id), False):
+                         invoking_user_display_nearby = "Anonymous User"
+                    user_section_value += f"**#{invoking_user_rank}. {invoking_user_display_nearby}** `{invoking_user_stats.total_generations}` generations\n"
+
+                    # User below (if exists)
+                    if invoking_user_rank < len(sorted_users):
+                        user_below_stats = sorted_users[invoking_user_rank]
+                        user_below_id_str = str(user_below_stats.user_id)
+                        user_below_display = "Anonymous User"
+                        if user_below_stats.user_id == invoking_user_id and not ephemeral and not opt_status.get(str(invoking_user_id), False):
+                             user_below_display = "Anonymous User"
+                        elif user_below_stats.user_id == invoking_user_id:
+                             user_below_display = interaction.user.mention
+                        elif opt_status.get(user_below_id_str, False): # Check if user opted in (default is False)
+                             user_below_obj = self.bot.get_user(user_below_stats.user_id)
+                             user_below_display = user_below_obj.mention if user_below_obj else f"<@{user_below_stats.user_id}>"
+
+                        user_section_value += f"**#{invoking_user_rank + 1}. {user_below_display}** `{user_below_stats.total_generations}` generations\n"
+
+            else:
+                user_section_value = "You have not generated any images yet to be on the leaderboard."
+
+            embed.add_field(
+                name=f"Your Stats ({interaction.user.name})",
+                value=user_section_value,
+                inline=False
+            )
+
+
+        # Add some overall global stats for context
+        global_stats = stats_manager.get_global_stats()
+        embed.add_field(
+            name="Overall Stats",
+            value=f"Total Generations (Global): `{global_stats.total_generations}`\n"
+                  f"Total Users: `{global_stats.total_users}`",
+            inline=False
+        )
+
+        # Add footer
+        embed.set_footer(text="Use /nai-leaderboard-opt to control if your name is shown on the leaderboard.")
+
+        await interaction.followup.send(embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=ephemeral)
+
+    @app_commands.command(name="nai-leaderboard-opt", description="Opt in or out of being shown on the global leaderboard")
+    @app_commands.describe(
+        opt_in="Whether to opt in (True) or opt out (False) of the leaderboard"
+    )
+    async def nai_leaderboard_opt(self, interaction: discord.Interaction, opt_in: bool):
+        """Opt in or out of being shown on the global leaderboard"""
+        logger.info(f"COMMAND 'NAI-LEADERBOARD-OPT' USED BY: {interaction.user} ({interaction.user.id})")
+
+        await interaction.response.defer(ephemeral=True)
+
+        user_id_str = str(interaction.user.id)
+        opt_status = {}
+
+        # Read existing status
+        if self.leaderboard_opt_file.exists():
+            try:
+                with open(self.leaderboard_opt_file, "r") as f:
+                    opt_status = json.load(f)
+            except json.JSONDecodeError:
+                logger.error(f"Error decoding JSON from {self.leaderboard_opt_file}. Starting with empty status.")
+                opt_status = {}
+
+        # Update user's status
+        opt_status[user_id_str] = opt_in
+
+        # Ensure directory exists
+        self.leaderboard_opt_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write updated status
+        try:
+            with open(self.leaderboard_opt_file, "w") as f:
+                json.dump(opt_status, f, indent=4)
+            status_message = "opted in to" if opt_in else "opted out of"
+            await interaction.followup.send(f"You have successfully {status_message} the global leaderboard.", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error writing leaderboard opt status to file: {e}")
+            await interaction.followup.send(f"An error occurred while updating your leaderboard opt status: {e}", ephemeral=True)
+
+
+    @app_commands.command(name="nai-stats-debug", description="Debug NAI stats system")
+    async def nai_stats_debug(self, interaction: discord.Interaction, user: discord.User = None):
+        """Debug command to check NAI stats system"""
+        logger.info(f"COMMAND 'NAI-STATS-DEBUG' USED BY: {interaction.user} ({interaction.user.id})")
+
+        if interaction.user.id != settings.BOT_OWNER_ID:
+            await interaction.response.send_message("This command is currently in testing and only available to the bot owner.", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        debug_info = ["```\n=== NAI Stats Debug Report ==="]
+        
+        if user:
+            debug_info.append(f"\n=== User Specific Integrity Check for User ID: {user.id} ===")
+            user_stats = stats_manager.get_user_stats(user.id)
+            
+            if not user_stats or user_stats.total_generations == 0:
+                debug_info.append(f"No generation statistics found for user ID {user.id}.")
+            else:
+                total_generations = user_stats.total_generations
+                sum_models = sum(user_stats.models_used.values())
+                sum_sizes = sum(user_stats.most_used_sizes.values())
+                sum_samplers = sum(user_stats.samplers_used.values())
+                
+                debug_info.append(f"Total Generations: {total_generations}")
+                debug_info.append(f"Sum of Models Used Counts: {sum_models}")
+                debug_info.append(f"Sum of Sizes Used Counts: {sum_sizes}")
+                debug_info.append(f"Sum of Samplers Used Counts: {sum_samplers}")
+                
+                issues_found = False
+                if total_generations != sum_models:
+                    debug_info.append(f"❌ Discrepancy: Total Generations ({total_generations}) != Sum of Models Used ({sum_models})")
+                    issues_found = True
+                if total_generations != sum_sizes:
+                    debug_info.append(f"❌ Discrepancy: Total Generations ({total_generations}) != Sum of Sizes Used ({sum_sizes})")
+                    issues_found = True
+                if total_generations != sum_samplers:
+                    debug_info.append(f"❌ Discrepancy: Total Generations ({total_generations}) != Sum of Samplers Used ({sum_samplers})")
+                    issues_found = True
+                    
+                if not issues_found:
+                    debug_info.append("✅ User specific counts match Total Generations.")
+                    
+        else:
+            # Directory Structure Check
+            debug_info.append("\n=== Directory Structure ===")
+            for directory in [settings.STATS_DIR, settings.USER_STATS_DIR, settings.GLOBAL_STATS_DIR]:
+                debug_info.append(f"\nDirectory: {directory}")
+                debug_info.append(f"Exists: {directory.exists()}")
+                if directory.exists():
+                    try:
+                        test_file = directory / ".test_write"
+                        test_file.write_text("test")
+                        test_file.unlink()
+                        debug_info.append("Write permissions: ✅")
+                    except Exception as e:
+                        debug_info.append(f"Write permissions: ❌ ({str(e)})")
+                    
+                    debug_info.append("Contents:")
+                    for item in directory.iterdir():
+                        debug_info.append(f"- {item.name}")
+                        if item.is_file() and item.suffix == '.json':
+                            try:
+                                with open(item, 'r') as f:
+                                    data = json.load(f)
+                                    data_size = len(str(data))
+                                    debug_info.append(f"  Size: {data_size} chars")
+                                    
+                                    # Add specific data checks based on file type
+                                    if item.name == "nai_history.json":
+                                        debug_info.append(f"  History entries: {len(data)}")
+                                        if data:
+                                            latest = data[-1]
+                                            debug_info.append(f"  Latest entry: {latest.get('timestamp', 'N/A')}")
+                                    
+                                    elif item.name == "nai_user_stats.json":
+                                        user_count = len(data)
+                                        total_gens = sum(d.get('total_generations', 0) for d in data.values())
+                                        debug_info.append(f"  Users: {user_count}")
+                                        debug_info.append(f"  Total generations: {total_gens}")
+                                    
+                                    elif item.name == "nai_global_stats.json":
+                                        debug_info.append(f"  Total generations: {data.get('total_generations', 0)}")
+                                        debug_info.append(f"  Total users: {data.get('total_users', 0)}")
+                                        debug_info.append(f"  Active today: {data.get('active_users_today', 0)}")
+                                    
+                            except json.JSONDecodeError as je:
+                                debug_info.append(f"  Error reading: ❌ Invalid JSON at position {je.pos}")
+                            except Exception as e:
+                                debug_info.append(f"  Error reading: ❌ {str(e)}")
+
+            # Stats Manager State
+            debug_info.append("\n=== Stats Manager State ===")
+            debug_info.append(f"History entries: {len(stats_manager.history)}")
+            debug_info.append(f"User stats entries: {len(stats_manager.user_stats)}")
+            debug_info.append(f"Global total generations: {stats_manager.global_stats.total_generations}")
+            
+            # Data Integrity Check (Global)
+            debug_info.append("\n=== Data Integrity Check (Global) ===")
+            try:
+                issues = stats_manager.verify_stats_integrity()
+                any_issues = False
+                for category, category_issues in issues.items():
+                    if category_issues:
+                        any_issues = True
+                        debug_info.append(f"\n{category.title()} Issues:")
+                        for issue in category_issues[:5]:  # Show only first 5 issues per category
+                            debug_info.append(f"❌ {issue}")
+                        if len(category_issues) > 5:
+                            debug_info.append(f"... and {len(category_issues) - 5} more issues")
+                
+                if not any_issues:
+                    debug_info.append("✅ No global integrity issues found")
+            except Exception as e:
+                debug_info.append(f"\n❌ Error during integrity check: {str(e)}")
+
+        debug_info.append("```")  # Close code block
+        
+        # Send the report
+        # Split into chunks if too long
+        report = "\n".join(debug_info)
+        if len(report) > 1990:  # Discord's limit is 2000, leave some room for ```
+            chunks = []
+            current_chunk = []
+            current_length = 0
+            
+            for line in debug_info:
+                if current_length + len(line) + 10 > 1990:  # +10 for ```\n and \n```
+                    chunks.append("```\n" + "\n".join(current_chunk) + "\n```")
+                    current_chunk = []
+                    current_length = 0
+                current_chunk.append(line)
+                current_length += len(line) + 1  # +1 for newline
+            
+            if current_chunk:
+                chunks.append("```\n" + "\n".join(current_chunk) + "\n```")
+            
+            for i, chunk in enumerate(chunks, 1):
+                await interaction.followup.send(f"Debug Report (Part {i}/{len(chunks)}):\n{chunk}")
+        else:
+            await interaction.followup.send(report)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NAI(bot))

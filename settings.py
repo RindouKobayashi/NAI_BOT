@@ -37,6 +37,14 @@ USER_VIBE_TRANSFER_DIR = DATABASE_DIR / "user_vibe_transfer"
 USER_NAI_PRESETS_DIR = DATABASE_DIR / "user_nai_presets"
 USER_NAI_PRESETS_DIR.mkdir(exist_ok=True)
 
+# Stats directories
+STATS_DIR = DATABASE_DIR / "stats"
+USER_STATS_DIR = STATS_DIR / "user_stats"
+GLOBAL_STATS_DIR = STATS_DIR / "global_stats"
+STATS_DIR.mkdir(exist_ok=True)
+USER_STATS_DIR.mkdir(exist_ok=True)
+GLOBAL_STATS_DIR.mkdir(exist_ok=True)
+
 STATS_JSON = DATABASE_DIR / "stats.json"
 
 CHANNEL_ID_TEST = 1188501454806339685

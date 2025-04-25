@@ -1,3 +1,4 @@
+from pathlib import Path
 import settings
 import aiohttp
 import json
@@ -5,7 +6,8 @@ import zipfile
 import io
 import base64
 import asyncio
-from settings import logger, NAI_API_TOKEN, random
+import uuid
+from settings import logger, NAI_API_TOKEN, random, STATS_DIR
 from pathlib import Path
 from datetime import datetime
 from discord import Interaction, Message, File, AllowedMentions
@@ -13,6 +15,12 @@ from discord.ext import commands
 import core.dict_annotation as da
 from core.viewhandler import RemixView
 from core.wd_tagger import predict
+from core.nai_stats import (
+    stats_manager, # Import the existing stats_manager instance
+    NAIGenerationHistory,
+    GenerationParameters,
+    GenerationResult
+)
 
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
@@ -133,8 +141,30 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 else:
                     message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
 
-                # Start the timer
+                # Create generation parameters for stats tracking
                 start_time = datetime.now()
+
+                generation_params = GenerationParameters(
+                    positive_prompt=bundle_data['params']['positive'],
+                    negative_prompt=bundle_data['params']['negative'],
+                    width=bundle_data['params']['width'],
+                    height=bundle_data['params']['height'],
+                    steps=bundle_data['params']['steps'],
+                    cfg=bundle_data['params']['cfg'],
+                    sampler=bundle_data['params']['sampler'],
+                    noise_schedule=bundle_data['params']['noise_schedule'],
+                    smea=bundle_data['params']['sm'] or bundle_data['params']['sm_dyn'],
+                    seed=bundle_data['params']['seed'],
+                    model=bundle_data['params']['model'],
+                    quality_toggle=bundle_data['checking_params']['quality_toggle'],
+                    undesired_content=bundle_data['params']['negative'], # Use the full negative prompt
+                    prompt_conversion=bundle_data['checking_params']['prompt_conversion_toggle'],
+                    upscale=bundle_data['params']['upscale'],
+                    decrisper=bundle_data['params']['dynamic_thresholding'],
+                    variety_plus=bundle_data['params']['skip_cfg_above_sigma'],
+                    vibe_transfer=bundle_data['params']['vibe_transfer_switch'],
+                    undesired_content_preset=bundle_data['checking_params']['undesired_content_presets'] # Use the selected preset name
+                )
 
                 # Call the NovelAI API
                 zipped_bytes, status = await NovelAIAPI.generate_image(
@@ -300,10 +330,52 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     await message.add_reaction("🔎")
                     await message.add_reaction("🗑️")
                 
+                # Record successful generation
+                generation_result = GenerationResult(
+                    success=True,
+                    error_message=None,
+                    database_message_id=database_message.id if 'database_message' in locals() else None,
+                    attempts_made=2 - bundle_data['number_of_tries'] # Calculate total attempts made
+                )
+                
+                # Create and save generation history
+                generation_history = NAIGenerationHistory(
+                    generation_id=request_id,
+                    timestamp=datetime.now().isoformat(),
+                    user_id=interaction.user.id,
+                    generation_time=elapsed_time,
+                    parameters=generation_params,
+                    result=generation_result
+                )
+                # Add generation to stats and save if successful
+                added_successfully = stats_manager.add_generation(generation_history)
+                if added_successfully:
+                    stats_manager.save_data()
+                
                 return True
 
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
+
+            # Record failed generation if variables are available
+            if 'request_id' in locals() and 'generation_params' in locals():
+                generation_result = GenerationResult(
+                    success=False,
+                    error_message=str(e),
+                    database_message_id=None,
+                    attempts_made=2 - bundle_data['number_of_tries'] # Calculate total attempts made
+                )
+
+                generation_history = NAIGenerationHistory(
+                    generation_id=request_id,
+                    timestamp=datetime.now().isoformat(),
+                    user_id=interaction.user.id,
+                    generation_time=0.0,
+                    parameters=generation_params,
+                    result=generation_result
+                )
+                stats_manager.add_generation(generation_history)
+
             if bundle_data['number_of_tries'] > 0:
                 reply_content = f"⚠️`{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
                 await message.edit(content=reply_content)
@@ -331,6 +403,28 @@ async def process_director_tools(bot: commands.Bot, bundle_data: da.BundleData):
 
                 # Start the timer
                 start_time = datetime.now()
+
+                generation_params = GenerationParameters(
+                    positive_prompt=bundle_data['director_tools_params']['prompt'],
+                    negative_prompt=None,
+                    width=bundle_data['director_tools_params']['width'],
+                    height=bundle_data['director_tools_params']['height'],
+                    steps=0,  # Director tools don't use these parameters
+                    cfg=0.0,
+                    sampler="",
+                    noise_schedule="",
+                    smea="",
+                    seed=0,
+                    model="director-tools",
+                    quality_toggle=False,
+                    undesired_content=bundle_data['director_tools_params']['prompt'], # Use the prompt for director tools
+                    prompt_conversion=False,
+                    upscale=False,
+                    decrisper=False,
+                    variety_plus=False,
+                    vibe_transfer=False,
+                    undesired_content_preset=None # Director tools don't have UC presets
+                )
 
                 # Call director tools API
                 zipped_bytes = await NovelAIAPI.director_tools(
