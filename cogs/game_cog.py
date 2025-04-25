@@ -255,19 +255,28 @@ class GameCog(commands.Cog):
         if len(guess) != 5:
             return None
 
-        result = []
+        result = ["⬛"] * 5
         guess = guess.lower()
+        target_word = self.current_word.lower()
         
-        # Check for exact matches first (green)
+        # Create a frequency map of letters in the target word
+        target_counts = {}
+        for letter in target_word:
+            target_counts[letter] = target_counts.get(letter, 0) + 1
+
+        # First pass: Check for exact matches (green)
         for i in range(5):
-            if i >= len(guess):
-                break
-            if guess[i] == self.current_word[i]:
-                result.append("🟩")
-            elif guess[i] in self.current_word:
-                result.append("🟨")
-            else:
-                result.append("⬛")
+            if i < len(guess) and guess[i] == target_word[i]:
+                result[i] = "🟩"
+                target_counts[guess[i]] -= 1
+
+        # Second pass: Check for misplaced letters (yellow)
+        for i in range(5):
+            # Only check letters that weren't already marked green
+            if result[i] == "⬛":
+                if i < len(guess) and guess[i] in target_counts and target_counts[guess[i]] > 0:
+                    result[i] = "🟨"
+                    target_counts[guess[i]] -= 1
                 
         return "".join(result)
 
