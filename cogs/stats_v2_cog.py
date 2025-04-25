@@ -886,4 +886,4 @@ async def setup(bot: commands.Bot):
     await bot.add_cog(StatsV2Cog(bot))
     # Sync commands to make slash commands available
     # Consider syncing to specific guilds during development
-    await bot.tree.sync() # Sync globally or to specific guild(s)
+    

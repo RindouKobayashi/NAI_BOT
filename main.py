@@ -32,6 +32,8 @@ async def on_ready():
             await bot.load_extension(f"cogs.{cof_file.name[:-3]}")
             logger.info(f"COG LOADED: {cof_file.name[:-3]} - COG FILE: {cof_file.name}")
 
+    await bot.tree.sync() # Sync globally or to specific guild(s)
+
     # load contextmenu
     image_contextmenu.contextmenu(bot)
 
