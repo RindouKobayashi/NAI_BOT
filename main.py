@@ -37,9 +37,6 @@ async def on_ready():
     # load contextmenu
     image_contextmenu.contextmenu(bot)
 
-    # Change presence 
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
-
 async def shutdown_tasks():
     """Perform shutdown tasks"""
     logger.warning("Bot is shutting down...")
