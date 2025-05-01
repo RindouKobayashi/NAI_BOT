@@ -27,18 +27,15 @@ async def on_ready():
     await queuehandler.start_queue(bot)
 
     # load cogs from cog 
-    for cof_file in settings.COGS_DIR.glob("*cog.py"):
-        if cof_file.name != "__init__.py":
-            await bot.load_extension(f"cogs.{cof_file.name[:-3]}")
-            logger.info(f"COG LOADED: {cof_file.name[:-3]} - COG FILE: {cof_file.name}")
+    for cog_file in settings.COGS_DIR.glob("*cog.py"):
+        if cog_file.name != "__init__.py":
+            await bot.load_extension(f"cogs.{cog_file.name[:-3]}")
+            logger.info(f"COG LOADED: {cog_file.name[:-3]} - COG FILE: {cog_file.name}")
 
     await bot.tree.sync() # Sync globally or to specific guild(s)
 
     # load contextmenu
     image_contextmenu.contextmenu(bot)
-
-    # Change presence 
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
 
 async def shutdown_tasks():
     """Perform shutdown tasks"""
