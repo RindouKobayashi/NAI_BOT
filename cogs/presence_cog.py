@@ -29,9 +29,12 @@ class PresenceCog(commands.Cog):
             (discord.ActivityType.listening, "image commands"),
             (discord.ActivityType.playing, "with AI art"),
             (discord.ActivityType.watching, "masterpieces form"),
-            (discord.ActivityType.listening, f"Ping: {round(self.bot.latency * 1000)}ms"),
             (discord.ActivityType.watching, f"Uptime: {round((discord.utils.utcnow() - self.start_time).total_seconds() / 60)} minutes"),
         ]
+        # Add ping status only if latency is finite
+        if self.bot.latency != float('inf'):
+             all_statuses.append((discord.ActivityType.listening, f"Ping: {round(self.bot.latency * 1000)}ms"))
+
         # Filter out current status if it exists
         if self.current_status:
             return [s for s in all_statuses if s != self.current_status]
