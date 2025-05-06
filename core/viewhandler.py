@@ -808,11 +808,18 @@ class SelectMenuView(View):
                     sm_dyn=checking_params["sm_dyn"],
                     seed=checking_params["seed"],
                     model=checking_params["model"],
-                    vibe_transfer_switch=checking_params["vibe_transfer_switch"],
+                    vibe_transfer_switch=checking_params.get("vibe_transfer_switch", False), # Safely access vibe_transfer_switch
                     dynamic_thresholding=checking_params["dynamic_thresholding"],
                     skip_cfg_above_sigma=checking_params["skip_cfg_above_sigma"],
                     upscale=checking_params["upscale"],
                 )
+                # Add vibe transfer data to params if the switch is True and data exists in checking_params
+                if checking_params.get("vibe_transfer_switch") and checking_params.get("vibe_transfer_image"):
+                    params["vibe_transfer_data"] = [{
+                        "image": checking_params["vibe_transfer_image"],
+                        "info_extracted": checking_params["vibe_transfer_info_extracted"],
+                        "ref_strength": checking_params["vibe_transfer_ref_strength"]
+                    }]
                 bundle_data: da.BundleData = da.create_with_defaults(
                     da.BundleData,
                     type="txt2img",
