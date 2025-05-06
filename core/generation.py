@@ -96,7 +96,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     "skip_cfg_above_sigma": bundle_data['params']['skip_cfg_above_sigma'] if bundle_data['params']['skip_cfg_above_sigma'] else None,
                 }
 
-                if bundle_data['params']['model'] == "nai-diffusion-4-full":
+                if bundle_data['params']['model'] in ["nai-diffusion-4-full", "nai-diffusion-4-5-curated"]:
                     #logger.info("Using nai-diffusion-4-full model")
                     nai_params["v4_prompt"] = {
                         "caption": {
