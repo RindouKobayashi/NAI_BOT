@@ -15,7 +15,7 @@ load_dotenv()
 
 branch = os.getenv("GITHUB_BRANCH", 'main')
 
-CHANGELOG = "Added vibe_transfer_preset, stats tracking, and leaderboard."
+CHANGELOG = "Added model `nai-diffusion-4-5-curated`"
     
 if branch == 'dev':
     DISCORD_API_TOKEN = os.getenv("DISCORD_API_TOKEN_TEST")
