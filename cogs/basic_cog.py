@@ -4,8 +4,10 @@ import asyncio
 import aiohttp
 from settings import logger, AUTOCOMPLETE_DATA
 from discord import app_commands
+from core.shutdown_utils import shutdown_tasks
 from discord.ext import commands
 import json
+from core.viewhandler import Globals
 
 class BASIC(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -54,9 +56,28 @@ class BASIC(commands.Cog):
             await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
         await interaction.response.send_message("Shutting down...", ephemeral=True, delete_after=time)
+        # Check for active views and notify users
+        active_views_messages = []
+        if Globals.select_views_generation_data:
+            for request_id, bundle_data in Globals.select_views_generation_data.items():
+                if isinstance(bundle_data, dict) and "message" in bundle_data and bundle_data["message"] is not None:
+                    active_views_messages.append(bundle_data["message"])
+        if Globals.remix_views:
+             for request_id, view in Globals.remix_views.items():
+                 if hasattr(view, 'bundle_data') and isinstance(view.bundle_data, dict) and "message" in view.bundle_data and view.bundle_data["message"] is not None:
+                     active_views_messages.append(view.bundle_data["message"])
+
+        if active_views_messages:
+            reply_content = f"Bot is shutting down. Reason: {reason if reason else 'No reason provided.'}"
+            # Use a set to avoid replying to the same message multiple times
+            unique_messages = set(active_views_messages)
+            for message in unique_messages:
+                try:
+                    await message.reply(reply_content)
+                except Exception as e:
+                    logger.error(f"Failed to reply to message {message.id} for shutdown notification: {e}")
+
         await asyncio.sleep(time)
-        from main import shutdown_tasks
-        await shutdown_tasks()
         await self.bot.close()
 
     @app_commands.command(name="how_to_vibe_transfer", description="How to vibe transfer")
