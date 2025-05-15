@@ -7,6 +7,9 @@
 ## 1.1.4 - 2025-05-06
 ### Added
 - Adds support for `nai-diffusion-4-5-curated` model (Nai v4.5 support).
+### Changed
+- Updates the default tag list for the `nai-diffusion-4-5-curated` model
+to prepend `very aesthetic,` to quality tags as per changelog from Anlatan.
 
 ## 1.1.3 - 2025-04-25
 ### Added

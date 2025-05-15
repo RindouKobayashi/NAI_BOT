@@ -128,7 +128,7 @@ class Nai_vars:
                 self.tags = "no text, best quality, very aesthetic, absurdres"
                 self.add_way = "append"
             elif self.model == "nai-diffusion-4-5-curated":
-                self.tags = "location, masterpiece, no text, -0.8::feet::, rating:general"
+                self.tags = "very aesthetic, location, masterpiece, no text, -0.8::feet::, rating:general"
                 self.add_way = "append"
 
     class director_tools():
