@@ -110,17 +110,40 @@ class ON_MESSAGE_V2(commands.Cog):
                 "content": message.content,
                 "username": message.author.display_name, # Use display_name (server nickname)
                 "avatar_url": message.author.avatar.url if message.author.avatar else message.author.default_avatar.url,
-                "embeds": [embed.to_dict() for embed in message.embeds]
+                "embeds": [embed.to_dict() if isinstance(embed, discord.Embed) else embed for embed in message.embeds]
             }
+
+            # Check if the message is empty before sending
+            # An empty message is one with no content, no embeds, and no files
+            if not payload.get("content") and not payload.get("embeds") and not files_to_send:
+                 logger.warning(f"Skipping empty message from {message.author} in {message.channel.name}")
+                 return
 
             try:
                 async with aiohttp.ClientSession() as session:
-                    if files_to_send:
-                        await webhook.send(**payload, files=files_to_send)
-                    else:
-                        await webhook.send(**payload)
+                    # Use the webhook URL directly with aiohttp post for more control over payload
+                    # This also helps with potential future handling of larger payloads if needed
+                    webhook_url = str(webhook.url) # Ensure it's a string
+
+                    data = aiohttp.FormData()
+                    # Add files first
+                    for i, file in enumerate(files_to_send):
+                        data.add_field(f'file{i}', file.fp, filename=file.filename)
+
+                    # Add payload as a JSON string under the 'payload_json' field
+                    data.add_field('payload_json', json.dumps(payload), content_type='application/json')
+
+                    async with session.post(webhook_url, data=data) as response:
+                        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+                        logger.info(f"Successfully sent message via webhook to {destination_channel.name}")
+
+            except aiohttp.ClientResponseError as e:
+                logger.error(f"Error sending message via webhook (HTTP Error {e.status}): {e.message}")
+                # Specific handling for Payload Too Large error
+                if e.status == 413:
+                    logger.error(f"Payload Too Large: Message from {message.author} in {message.channel.name} exceeded Discord's size limit.")
             except Exception as e:
-                logger.error(f"Error sending message via webhook: {e}")
+                logger.error(f"An unexpected error occurred while sending message via webhook: {e}")
             finally:
                 # Close the files after sending
                 for file in files_to_send:
