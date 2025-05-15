@@ -47,6 +47,12 @@ GLOBAL_STATS_DIR.mkdir(exist_ok=True)
 
 STATS_JSON = DATABASE_DIR / "stats.json"
 
+# Update Notification Settings
+VERSION_FILE = "version.txt"
+CHANGELOG_FILE = "changelog.md"
+NOTIFIED_USERS_FILE = "database/notified_users.json"
+
+
 CHANNEL_ID_TEST = 1188501454806339685
 SERVER_ID_TEST = 1157816835975151706
 
