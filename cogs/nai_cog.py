@@ -75,9 +75,9 @@ class NAI(commands.Cog):
                             json.dump(new_data, f, indent=4)
                         logger.info(f"Migration successful for user {user_id}")
                     elif isinstance(user_data, dict) and "presets" in user_data:
-                        logger.info(f"Data for user {user_id} is already in the new format. Skipping migration.")
+                        logger.debug(f"Data for user {user_id} is already in the new format. Skipping migration.")
                     else:
-                        logger.warning(f"Unknown data format for user {user_id} in {filename}. Skipping migration.")
+                        logger.debug(f"Unknown data format for user {user_id} in {filename}. Skipping migration.")
 
                 except json.JSONDecodeError:
                     logger.error(f"Error decoding JSON from {filename}. Skipping migration for this file.")
