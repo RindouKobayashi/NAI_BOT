@@ -188,7 +188,7 @@ class GameCog(commands.Cog):
                     int(user_id): PlayerStats.from_dict(data)
                     for user_id, data in stats_dict.items()
                 }
-                logger.info("Loaded Wordle stats successfully")
+                logger.debug("Loaded Wordle stats successfully")
             else:
                 logger.info("No existing stats file found, starting fresh")
         except Exception as e:

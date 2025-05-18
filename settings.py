@@ -90,14 +90,14 @@ LOGGING_CONFIG = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "%(levelname)-10s - %(asctime)s - %(module)-15s : %(message)s",
+            "format": "%(levelname)-10s - %(asctime)s - [PID:%(process)d] - %(module)-15s : %(message)s",
         },
         "standard": {
-            "format": "%(levelname)-10s - %(name)-15s : %(message)s",
+            "format": "%(levelname)-10s - [PID:%(process)d] - %(name)-15s : %(message)s",
         },
         "colored": {
             "()": ColoredFormatter,
-            "format": "%(levelname)-10s - %(name)-15s : %(message)s",
+            "format": "%(levelname)-10s - [PID:%(process)d] - %(name)-15s : %(message)s",
         }
     },
     "handlers": {
@@ -118,7 +118,7 @@ LOGGING_CONFIG = {
             "class": "logging.FileHandler",
             "filename": "logs/infos.log",
             "formatter": "verbose",
-            "mode": "w",
+            "mode": "a",
             "encoding": "utf-8",
         },        
     },

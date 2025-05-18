@@ -656,7 +656,7 @@ class NAIStatsManager:
 
 try:
     import settings
-    logger.info("Settings imported successfully for stats manager")
+    logger.debug("Settings imported successfully for stats manager")
 except Exception as e:
     logger.error(f"Error importing settings: {str(e)}")
     raise
@@ -664,7 +664,7 @@ except Exception as e:
 # Create stats manager instance
 try:
     stats_manager = NAIStatsManager(settings.STATS_DIR)
-    logger.info("Stats manager initialized successfully")
+    logger.debug("Stats manager initialized successfully")
 except Exception as e:
     logger.error(f"Error creating stats manager: {str(e)}")
     raise

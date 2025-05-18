@@ -2,6 +2,10 @@ import discord
 import settings
 import asyncio
 import aiohttp
+import subprocess
+import sys
+import os
+from pathlib import Path
 from settings import logger, AUTOCOMPLETE_DATA
 from discord import app_commands
 from core.shutdown_utils import shutdown_tasks
@@ -48,9 +52,9 @@ class BASIC(commands.Cog):
 
 
     @app_commands.command(name="shutdown", description="Shutdown the bot")
-    async def shutdown(self, interaction: discord.Interaction, time: int = 30, reason:str = None):
+    async def shutdown(self, interaction: discord.Interaction, time: int = 30, reason:str = None, restart: bool = False, update: bool = False):
         """Shutdown the bot"""
-        logger.info(f"COMMAND 'SHUTDOWN' USED BY: {interaction.user} ({interaction.user.id})")
+        logger.warning(f"COMMAND 'SHUTDOWN' USED BY: {interaction.user} ({interaction.user.id})")
         # Check if user is owner of bot
         if interaction.user.id != settings.BOT_OWNER_ID:
             await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
@@ -58,7 +62,10 @@ class BASIC(commands.Cog):
         if time <= 1:
             await interaction.response.send_message("Time must be greater than 1 second.", ephemeral=True)
             return
-        await interaction.response.send_message("Shutting down...", ephemeral=True, delete_after=time)
+        if not restart and not update:
+            await interaction.response.send_message(f"Shutting down in {time} seconds. Reason: `{reason if reason else 'No reason provided.'}`", ephemeral=True, delete_after=time-1)
+        else:
+            await interaction.response.send_message(f"Restarting in {time} seconds. Reason: `{reason if reason else 'No reason provided.'}`", ephemeral=True, delete_after=time-1)
         # Check for active views and notify users
         active_views_messages = []
         if Globals.select_views_generation_data:
@@ -70,8 +77,18 @@ class BASIC(commands.Cog):
                  if hasattr(view, 'bundle_data') and isinstance(view.bundle_data, dict) and "message" in view.bundle_data and view.bundle_data["message"] is not None:
                      active_views_messages.append(view.bundle_data["message"])
 
-        if active_views_messages:
+        # Create reply_content
+        reply_content = ""
+
+        # Check if restart or update is requested
+        if restart or update:
+            reply_content = f"{interaction.user.mention} Bot is restarting. Reason: `{reason if reason else 'No reason provided.'}`"
+
+        else:
             reply_content = f"{interaction.user.mention} Bot is shutting down. Reason: `{reason if reason else 'No reason provided.'}`"
+
+        # Check if there are active views and notify users
+        if active_views_messages:
             reply_content += "\n-# Message will self-destruct upon bot shutdown."
             # Use a set to avoid replying to the same message multiple times
             unique_messages = set(active_views_messages)
@@ -82,8 +99,66 @@ class BASIC(commands.Cog):
                 except Exception as e:
                     logger.error(f"Failed to reply to message {message.id} for shutdown notification: {e}")
 
+        if update:
+            logger.info("Attempting git pull for update...")
+            try:
+                # Execute git pull command
+                # Note: This command will be executed in the current working directory: c:/Users/User/OneDrive/Desktop/NAI_BOT
+                # If your git repository is in a different directory, you'll need to adjust the command
+                # e.g., `cd /path/to/your/repo && git pull`
+                git_pull_result = await asyncio.create_subprocess_shell(
+                    "git pull",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await git_pull_result.communicate()
+                # close the subprocess
+                await git_pull_result.wait()
+
+                if git_pull_result.returncode == 0:
+                    logger.info("Git pull successful.")
+                    if stdout:
+                        logger.debug(f"Git pull stdout:\n{stdout.decode().strip()}")
+                else:
+                    logger.error(f"Git pull failed with return code {git_pull_result.returncode}.")
+                    if stdout:
+                        logger.error(f"Git pull stdout:\n{stdout.decode().strip()}")
+                    if stderr:
+                        logger.error(f"Git pull stderr:\n{stderr.decode().strip()}")
+
+            except FileNotFoundError:
+                logger.error("Git command not found. Is Git installed and in your PATH?")
+            except Exception as e:
+                logger.error(f"An error occurred during git pull: {e}")
+
         await asyncio.sleep(time)
+
+        if restart:
+            try:
+                logger.info("Attempting to restart bot...")
+                # Get the absolute path to restart.py using pathlib for cross-platform compatibility
+                restart_script = Path(__file__).parent.parent / "restart.py"
+                
+                # Execute restart script with the current venv Python
+                env = os.environ.copy()
+                # Log the Python interpreter being used
+                logger.debug(f"Using Python interpreter: {sys.executable}")
+                subprocess.Popen(
+                    [sys.executable, str(restart_script)],
+                    env=env
+                )
+                logger.debug("Restart script executed successfully")
+            except Exception as e:
+                logger.error(f"Failed to restart bot: {e}")
+                logger.exception("Full traceback:")
+
+        # Small delay to ensure restart process starts
+        if restart:
+            await asyncio.sleep(1)
+        
+        # Close the bot
         await self.bot.close()
+
 
     @app_commands.command(name="how_to_vibe_transfer", description="How to vibe transfer")
     async def vibe_transfer(self, interaction: discord.Interaction):

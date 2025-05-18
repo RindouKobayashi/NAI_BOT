@@ -24,6 +24,9 @@ settings.Globals.bot = bot  # Store bot instance in Globals for access during sh
 
 @bot.event
 async def on_ready():
+    logger.info("="*50)
+    logger.info("Bot Starting")
+    logger.info(f"Discord Bot Process PID: {os.getpid()} (This is the actual bot process)")
     logger.info(f"User: {bot.user} (ID: {bot.user.id})")
     
     # Start queuehandler
@@ -40,10 +43,10 @@ async def on_ready():
     # Add the update notification check to each command in the tree
     for command in bot.tree.walk_commands():
         command.add_check(notify_user_of_update)
-    logger.info("Update notification check added to all commands in the tree.")
 
     # load contextmenu
     image_contextmenu.contextmenu(bot)
+    logger.info("Context menu loaded")
 
     # Load version, changelog, and notified users data
     bot.current_version = "Unknown"
@@ -78,12 +81,13 @@ async def on_ready():
             bot.notified_users_data = {}
 
         logger.info(f"Bot Version: {bot.current_version}")
-        logger.info(f"Notified Users Data Loaded: {len(bot.notified_users_data.get(bot.current_version, []))} users notified for this version.")
+        logger.debug(f"Notified Users Data Loaded: {len(bot.notified_users_data.get(bot.current_version, []))} users notified for this version.")
 
     except Exception as e:
         logger.error(f"An error occurred while loading update notification data: {e}")
 
-    logger.info("Bot is ready and all cogs have been loaded.")
+    logger.info("Bot is ready and all cogs have been loaded")
+    logger.info("="*50)
 
 async def main():
     try:

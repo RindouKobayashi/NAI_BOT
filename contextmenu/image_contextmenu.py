@@ -3,9 +3,6 @@ from discord.ext import commands
 from settings import logger
 from core import wd_tagger
 
-if __name__ != "__main__":
-    logger.info(f"CONTEXT MENU LOADED: {__name__}")
-
 def contextmenu(bot: commands.Bot):
     @bot.tree.context_menu(name="Show join date")
     async def show_join_date(interaction: discord.Interaction, user: discord.User):
