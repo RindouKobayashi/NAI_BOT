@@ -19,12 +19,6 @@ class ON_MESSAGE(commands.Cog):
             await message.reply("**Please do not talk in the database, stooopid**", mention_author=True, delete_after=10)
             await message.delete()
 
-        if message.guild.id == settings.SERVER_ID_TEST:
-            if message.author.id == 1250664790800470118:
-                # 30% chance of bot scolding user
-                if random.randint(1, 100) <= 10:
-                    await message.add_reaction("<a:ElivLick:1293771006606966784>")
-
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ON_MESSAGE(bot))
