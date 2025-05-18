@@ -20,6 +20,16 @@ async def shutdown_tasks():
 
     # Stop the queue first
     await queuehandler.stop_queue()
+    
+    # Get bot instance from settings (where it's stored during startup)
+    bot = settings.Globals.bot
+
+    # Close bot's HTTP session if it exists
+    if hasattr(bot, 'http'):
+        if hasattr(bot.http, '_client_session') and not bot.http._client_session.closed:
+            await bot.http._client_session.close()
+            # Small delay to allow connections to close gracefully
+            await asyncio.sleep(0.5)
 
     try:
         # Process views with a short timeout to ensure we complete before session close
@@ -58,12 +68,32 @@ async def shutdown_tasks():
     except Exception as e:
         logger.error(f"Error during view cleanup: {e}")
     finally:
-        # Clean up any remaining tasks
+        # Clean up any remaining tasks and ensure sessions are closed
         for task in asyncio.all_tasks():
             if task != asyncio.current_task():
+                # Extra cleanup for aiohttp sessions/connectors before canceling
+                for attr in ['_session', '_connector']:
+                    try:
+                        if hasattr(task, attr):
+                            session_or_connector = getattr(task, attr)
+                            if hasattr(session_or_connector, 'closed') and not session_or_connector.closed:
+                                await session_or_connector.close()
+                    except Exception as e:
+                        logger.debug(f"Non-critical error during {attr} cleanup: {e}")
+                
                 task.cancel()
 
         # Always clear the view dictionaries
         settings.Globals.remix_views.clear()
         settings.Globals.select_views.clear()
 
+        # Final check for any remaining unclosed connectors
+        for task in asyncio.all_tasks():
+            for attr in ['_session', '_connector']:
+                try:
+                    if hasattr(task, attr):
+                        session_or_connector = getattr(task, attr)
+                        if hasattr(session_or_connector, 'closed') and not session_or_connector.closed:
+                            await session_or_connector.close()
+                except Exception as e:
+                    logger.debug(f"Non-critical error during final {attr} cleanup: {e}")

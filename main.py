@@ -19,7 +19,8 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix='~', intents=intents)
-    
+settings.Globals.bot = bot  # Store bot instance in Globals for access during shutdown
+
 
 @bot.event
 async def on_ready():
@@ -81,6 +82,8 @@ async def on_ready():
 
     except Exception as e:
         logger.error(f"An error occurred while loading update notification data: {e}")
+
+    logger.info("Bot is ready and all cogs have been loaded.")
 
 async def main():
     try:

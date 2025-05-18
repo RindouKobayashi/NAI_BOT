@@ -153,6 +153,7 @@ with open("danbooru.csv", newline="", encoding="utf-8") as csvfile:
 #logger.info(f"AUTOCOMPLETE_DATA: {AUTOCOMPLETE_DATA}")
 
 class Globals:
+    bot = None  # Store bot instance
     remix_views = {}
     select_views = {}
     select_views_generation_data = {}
