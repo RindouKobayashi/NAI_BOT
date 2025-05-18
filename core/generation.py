@@ -223,10 +223,6 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 # Some information for the user
                 reply_content = f"Seed: `{bundle_data['params']['seed']}` | Elapsed time: `{elapsed_time}s`"
                 reply_content += f"\nBy: {interaction.user.mention}"
-                
-                # Include changelog in footnote 1 in 10 chance
-                if random.randint(1, 10) == 1:
-                    reply_content += f"\n-# Changelog: `{settings.CHANGELOG}`"
 
                 # Prepare the image as a file
                 files = []
