@@ -85,8 +85,6 @@ async def on_ready():
 async def main():
     try:
         await bot.start(settings.DISCORD_API_TOKEN)
-    except KeyboardInterrupt:
-        logger.info("Received keyboard interrupt. Shutting down...")
     finally:
         await shutdown_tasks()
         if not bot.is_closed():

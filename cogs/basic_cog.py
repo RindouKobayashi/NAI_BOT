@@ -52,8 +52,11 @@ class BASIC(commands.Cog):
         """Shutdown the bot"""
         logger.info(f"COMMAND 'SHUTDOWN' USED BY: {interaction.user} ({interaction.user.id})")
         # Check if user is owner of bot
-        if interaction.user.id != 125331697867816961:
+        if interaction.user.id != settings.BOT_OWNER_ID:
             await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            return
+        if time <= 1:
+            await interaction.response.send_message("Time must be greater than 1 second.", ephemeral=True)
             return
         await interaction.response.send_message("Shutting down...", ephemeral=True, delete_after=time)
         # Check for active views and notify users
@@ -68,12 +71,14 @@ class BASIC(commands.Cog):
                      active_views_messages.append(view.bundle_data["message"])
 
         if active_views_messages:
-            reply_content = f"Bot is shutting down. Reason: {reason if reason else 'No reason provided.'}"
+            reply_content = f"{interaction.user.mention} Bot is shutting down. Reason: `{reason if reason else 'No reason provided.'}`"
+            reply_content += "\n-# Message will self-destruct upon bot shutdown."
             # Use a set to avoid replying to the same message multiple times
             unique_messages = set(active_views_messages)
             for message in unique_messages:
                 try:
-                    await message.reply(reply_content)
+                    message: discord.Message
+                    await message.reply(reply_content, delete_after=time-1)
                 except Exception as e:
                     logger.error(f"Failed to reply to message {message.id} for shutdown notification: {e}")
 
