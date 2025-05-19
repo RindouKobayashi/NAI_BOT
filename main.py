@@ -89,7 +89,7 @@ async def on_ready():
     except Exception as e:
         logger.error(f"An error occurred while loading update notification data: {e}")
 
-    logger.info("Bot is ready and all cogs have been loaded")
+    logger.info(f"Bot is ready and all {len(bot.cogs)} cogs have been loaded")
     logger.info("="*50)
 
 async def main():

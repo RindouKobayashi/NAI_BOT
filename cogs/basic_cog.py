@@ -217,6 +217,36 @@ class BASIC(commands.Cog):
         status["installed_users"] = app_info.approximate_user_install_count
         status["installed_guilds"] = app_info.approximate_guild_count
         await interaction.response.send_message(f"Bot Status:\n```json\n{json.dumps(status, indent=4)}\n```", ephemeral=True)
+
+    @app_commands.command(name="logs", description="Get the bot's logs")
+    async def logs(self, interaction: discord.Interaction, lines: int = 0):
+        """Get the bot's logs"""
+        logger.info(f"COMMAND 'LOGS' USED BY: {interaction.user} ({interaction.user.id})")
+        if interaction.user.id != settings.BOT_OWNER_ID:
+            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            return
+        
+        # Read the log file
+        log_file_path = "logs/infos.log"
+
+        # if lines is 0 or less, send the whole log as file
+        if lines <= 0:
+            if os.path.exists(log_file_path):
+                with open(log_file_path, 'r') as f:
+                    log_content = f.read()
+                await interaction.response.send_message(file=discord.File(log_file_path, filename="logs.txt"), ephemeral=True)
+            else:
+                await interaction.response.send_message("Log file not found.", ephemeral=True)
+
+        else:
+            if os.path.exists(log_file_path):
+                with open(log_file_path, 'r') as f:
+                    lines_content = f.readlines()
+                # Get the last 'lines' lines
+                last_lines = ''.join(lines_content[-lines:])
+                await interaction.response.send_message(f"```{last_lines}```", ephemeral=True)
+            else:
+                await interaction.response.send_message("Log file not found.", ephemeral=True)
         
 
         
