@@ -29,6 +29,9 @@ async def on_ready():
     logger.info(f"Discord Bot Process PID: {os.getpid()} (This is the actual bot process)")
     logger.info(f"User: {bot.user} (ID: {bot.user.id})")
     
+    # Keep track of start time for uptime calculation
+    bot.start_time = discord.utils.utcnow()
+    
     # Start queuehandler
     await queuehandler.start_queue(bot)
 

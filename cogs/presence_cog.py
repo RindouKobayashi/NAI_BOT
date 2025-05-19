@@ -10,7 +10,6 @@ class PresenceCog(commands.Cog):
         self.bot = bot
         self.guild_count = 0
         self.current_status = None
-        self.start_time = discord.utils.utcnow()
         self.change_status.start()
 
     def cog_unload(self):
@@ -29,7 +28,7 @@ class PresenceCog(commands.Cog):
             (discord.ActivityType.listening, "image commands"),
             (discord.ActivityType.playing, "with AI art"),
             (discord.ActivityType.watching, "masterpieces form"),
-            (discord.ActivityType.watching, f"Uptime: {round((discord.utils.utcnow() - self.start_time).total_seconds() / 60)} minutes"),
+            (discord.ActivityType.watching, f"Uptime: {round((discord.utils.utcnow() - self.bot.start_time).total_seconds() / 60)} minutes"),
         ]
         # Add ping status only if latency is finite
         if self.bot.latency != float('inf'):

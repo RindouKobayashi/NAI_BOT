@@ -186,27 +186,6 @@ class BASIC(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="installed_users", description="List all installed users")
-    async def installed_users(self, interaction: discord.Interaction):
-        """List all installed users"""
-        if interaction.user.id != 125331697867816961:
-            await interaction.response.send_message("Only the bot owner can use this command.", ephemeral=True)
-            return
-        logger.info(f"COMMAND 'INSTALLED_USERS' USED BY: {interaction.user} ({interaction.user.id})")
-        url = "https://discord.com/api/v10/applications/@me"
-
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                "Authorization": f"Bot {settings.DISCORD_API_TOKEN}"
-            }
-            async with session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    install_users = data.get("approximate_user_install_count")
-                    await interaction.response.send_message(f"Installed users: {install_users}")
-                else:
-                    await interaction.response.send_message(f"Failed to get installed users. Status code: {response.status}", ephemeral=True)
-
     @app_commands.command(name="feedback", description="Send feedback/suggestions to the bot owner")
     async def feedback(self, interaction: discord.Interaction, feedback: str):
         """Send feedback to the bot owner"""
@@ -215,6 +194,30 @@ class BASIC(commands.Cog):
         bot_owner = self.bot.get_user(settings.BOT_OWNER_ID)
         await bot_owner.send(f"Feedback from {interaction.user} : `{feedback}`\nLink to person: [{interaction.user.display_name}](<https://discord.com/users/{interaction.user.id}>) ")
         await interaction.response.send_message("Thank you for your feedback!", ephemeral=True, delete_after=20)
+
+    @app_commands.command(name="status", description="Get the bot's status")
+    async def status(self, interaction: discord.Interaction):
+        """Get the bot's status"""
+        logger.info(f"COMMAND 'STATUS' USED BY: {interaction.user} ({interaction.user.id})")
+        if interaction.user.id != settings.BOT_OWNER_ID:
+            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            return
+        # Get the bot's status
+        # aline the status
+        status = {
+            "uptime": f"{round((discord.utils.utcnow() - self.bot.start_time).total_seconds() / 60)} minutes",
+            "latency": f"{round(self.bot.latency * 1000)} ms",
+            "guilds": len(self.bot.guilds),
+            "users": len(set(self.bot.get_all_members())),
+            "cogs": len(self.bot.cogs),
+            "version": self.bot.current_version,
+        }
+        # Get application info
+        app_info = await self.bot.application_info()
+        status["installed_users"] = app_info.approximate_user_install_count
+        status["installed_guilds"] = app_info.approximate_guild_count
+        await interaction.response.send_message(f"Bot Status:\n```json\n{json.dumps(status, indent=4)}\n```", ephemeral=True)
+        
 
         
     
