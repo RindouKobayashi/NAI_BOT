@@ -86,7 +86,7 @@ class ON_MESSAGE_V2(commands.Cog):
             if not webhook:
                 try:
                     webhook = await destination_channel.create_webhook(name="Message Duplicator Webhook")
-                    logger.info(f"Created webhook in channel '{destination_channel.name}'.")
+                    logger.debug(f"Created webhook in channel '{destination_channel.name}'.")
                 except discord.Forbidden:
                     logger.error(f"Missing permissions to create webhook in channel '{destination_channel.name}'.")
                     return
