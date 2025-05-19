@@ -86,7 +86,7 @@ class ON_MESSAGE_V2(commands.Cog):
             if not webhook:
                 try:
                     webhook = await destination_channel.create_webhook(name="Message Duplicator Webhook")
-                    logger.debug(f"Created webhook in channel '{destination_channel.name}'.")
+                    logger.info(f"Created webhook in channel '{destination_channel.name}'.")
                 except discord.Forbidden:
                     logger.error(f"Missing permissions to create webhook in channel '{destination_channel.name}'.")
                     return
@@ -135,7 +135,7 @@ class ON_MESSAGE_V2(commands.Cog):
 
                     async with session.post(webhook_url, data=data) as response:
                         response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
-                        logger.info(f"Successfully sent message via webhook to {destination_channel.name}")
+                        logger.debug(f"Successfully sent message via webhook to {destination_channel.name}")
 
             except aiohttp.ClientResponseError as e:
                 logger.error(f"Error sending message via webhook (HTTP Error {e.status}): {e.message}")
