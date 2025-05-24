@@ -12,13 +12,17 @@ from core.shutdown_utils import shutdown_tasks
 from discord.ext import commands
 import json
 from core.viewhandler import Globals
+import settings
+
+# Build a list of discord.Object instances
+_allowed_guilds = [discord.Object(id=guild_id) for guild_id in settings.DEVELOPER_SERVERS_LIST]
 
 class BASIC(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        
 
     @app_commands.command(name="sync", description="Force sync")
+    @app_commands.guilds(*_allowed_guilds)
     async def sync(self, interaction: discord.Interaction):
         logger.info(f"COMMAND 'SYNC' USED BY: {interaction.user} ({interaction.user.id})")
         # Check if user is owner of bot
@@ -52,6 +56,7 @@ class BASIC(commands.Cog):
 
 
     @app_commands.command(name="shutdown", description="Shutdown the bot")
+    @app_commands.guilds(*_allowed_guilds)
     async def shutdown(self, interaction: discord.Interaction, time: int = 30, reason:str = None, restart: bool = False, update: bool = False):
         """Shutdown the bot"""
         logger.warning(f"COMMAND 'SHUTDOWN' USED BY: {interaction.user} ({interaction.user.id})")
@@ -168,6 +173,7 @@ class BASIC(commands.Cog):
 
 
     @app_commands.command(name="whois", description="Get information about a user")
+    @app_commands.guilds(*_allowed_guilds)
     async def whois(self, interaction: discord.Interaction, user: discord.User = None):
         """Get information about a user"""
         logger.info(f"COMMAND 'WHOIS' USED BY: {interaction.user} ({interaction.user.id})")
@@ -196,6 +202,7 @@ class BASIC(commands.Cog):
         await interaction.response.send_message("Thank you for your feedback!", ephemeral=True, delete_after=20)
 
     @app_commands.command(name="status", description="Get the bot's status")
+    @app_commands.guilds(*_allowed_guilds)
     async def status(self, interaction: discord.Interaction):
         """Get the bot's status"""
         logger.info(f"COMMAND 'STATUS' USED BY: {interaction.user} ({interaction.user.id})")
@@ -219,6 +226,7 @@ class BASIC(commands.Cog):
         await interaction.response.send_message(f"Bot Status:\n```json\n{json.dumps(status, indent=4)}\n```", ephemeral=True)
 
     @app_commands.command(name="logs", description="Get the bot's logs")
+    @app_commands.guilds(*_allowed_guilds)
     async def logs(self, interaction: discord.Interaction, lines: int = 0):
         """Get the bot's logs"""
         logger.info(f"COMMAND 'LOGS' USED BY: {interaction.user} ({interaction.user.id})")

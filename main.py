@@ -41,7 +41,11 @@ async def on_ready():
             await bot.load_extension(f"cogs.{cog_file.name[:-3]}")
             logger.info(f"COG LOADED: {cog_file.name[:-3]} - COG FILE: {cog_file.name}")
 
-    #await bot.tree.sync() # Sync globally or to specific guild(s)
+    #await bot.tree.sync() # Sync globally
+
+    for guild_id in settings.DEVELOPER_SERVERS_LIST: # Sync for developer servers
+        synced_guild = await bot.tree.sync(guild=discord.Object(id=guild_id))
+        logger.info(f"Synced commands for guild: {guild_id}")
 
     # Add the update notification check to each command in the tree
     for command in bot.tree.walk_commands():
