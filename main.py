@@ -47,9 +47,11 @@ async def on_ready():
         synced_guild = await bot.tree.sync(guild=discord.Object(id=guild_id))
         logger.info(f"Synced commands for guild: {guild_id}")
 
-    # Add the update notification check to each command in the tree
+    # Add the update notification check to each command in the tree skipping group commands
     for command in bot.tree.walk_commands():
-        command.add_check(notify_user_of_update)
+        if isinstance(command, discord.app_commands.Command):
+            # Add the update notification check to the command
+            command.add_check(notify_user_of_update)
 
     # load contextmenu
     image_contextmenu.contextmenu(bot)
