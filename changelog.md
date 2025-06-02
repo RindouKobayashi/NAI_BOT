@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.6 - 2025-06-02
+### Added
+- Added `nai-diffusion-4-5-full` model (Nai v4.5 support).
+
 ## 1.1.5 - 2025-05-16
 ### Added
 - Implemented a system to notify users about bot updates with the changelog, ensuring each user is notified only once per version.

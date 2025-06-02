@@ -96,7 +96,7 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     "skip_cfg_above_sigma": bundle_data['params']['skip_cfg_above_sigma'] if bundle_data['params']['skip_cfg_above_sigma'] else None,
                 }
 
-                if bundle_data['params']['model'] in ["nai-diffusion-4-full", "nai-diffusion-4-5-curated"]:
+                if bundle_data['params']['model'] in ["nai-diffusion-4-full", "nai-diffusion-4-5-curated", "nai-diffusion-4-5-full"]:
                     #logger.info("Using nai-diffusion-4-full model")
                     nai_params["v4_prompt"] = {
                         "caption": {
@@ -115,7 +115,8 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                         "use_order": False,
                     }
                     nai_params["legacy_v3_extend"] = False
-                    nai_params["noise_schedule"] = "karras"
+                    if bundle_data['params']['noise_schedule'] == "native":
+                        nai_params["noise_schedule"] = "karras"
 
                 #logger.info(f"Parameters: {nai_params}")
 
@@ -131,12 +132,8 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                         nai_params['reference_image_multiple'].append(entry['image'])
                         nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
                         nai_params['reference_strength_multiple'].append(entry['ref_strength'])
-
-                # random chance of special message happening (1 in 4) to inform about new nai model 4
-                if random.randint(1, 4) == 1:
-                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`\n-# New model `nai-diffusion-4-full` available! Use `model=nai-diffusion-4-full` to use it!")
-                else:
-                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
+                
+                message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
 
                 # Create generation parameters for stats tracking
                 start_time = datetime.now()

@@ -4,7 +4,7 @@ import random
 import discord
 
 class Nai_vars:
-    models = ["nai-diffusion-4-5-curated","nai-diffusion-4-full", "nai-diffusion", "nai-diffusion-2", "nai-diffusion-3", "safe-diffusion", "nai-diffusion-furry", "nai-diffusion-furry-3"]
+    models = ["nai-diffusion-4-5-full", "nai-diffusion-4-5-curated","nai-diffusion-4-full", "nai-diffusion", "nai-diffusion-2", "nai-diffusion-3", "safe-diffusion", "nai-diffusion-furry", "nai-diffusion-furry-3"]
     models_choices = [app_commands.Choice(name=name, value=name) for name in models]
     models_select_options = [discord.SelectOption(label=name, description=name) for name in models]
     samplers = ["k_euler", "k_euler_ancestral", "k_dpmpp_2s_ancestral", "k_dpmpp_2m", "k_dpmpp_sde", "k_dpmpp_2m_sde", "ddim_v3"]
@@ -33,7 +33,7 @@ class Nai_vars:
     class pixel_limit():
         def __init__(self, model):
             self.model = model
-            if self.model in ["nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3", "nai-diffusion-4-full", "nai-diffusion-4-5-curated"]:
+            if self.model in ["nai-diffusion-2", "nai-diffusion-3", "nai-diffusion-furry-3", "nai-diffusion-4-full", "nai-diffusion-4-5-curated", "nai-diffusion-4-5-full"]:
                 self.pixel_limit = 1024*1024
             else:
                 self.pixel_limit = 640*640
@@ -107,6 +107,13 @@ class Nai_vars:
                     "human_focus": "blurry, lowres, upscaled, artistic error, film grain, scan artifacts, bad anatomy, bad hands, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, @_@, mismatched pupils, glowing eyes, negative space, blank page",
                     "none": ""
                 }
+            elif self.model == "nai-diffusion-4-5-full":
+                self.presets = {
+                    "heavy": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page",
+                    "light": "lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page",
+                    "human_focus": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy",
+                    "none": ""
+                }
             self.undesired_content_select_options = [discord.SelectOption(label=name, value=name) for name in self.presets.keys()]
 
     class quality_tags():
@@ -129,6 +136,9 @@ class Nai_vars:
                 self.add_way = "append"
             elif self.model == "nai-diffusion-4-5-curated":
                 self.tags = "very aesthetic, location, masterpiece, no text, -0.8::feet::, rating:general"
+                self.add_way = "append"
+            elif self.model == "nai-diffusion-4-5-full":
+                self.tags = ", location, very aesthetic, masterpiece, no text"
                 self.add_way = "append"
 
     class director_tools():
