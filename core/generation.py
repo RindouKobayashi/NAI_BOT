@@ -7,6 +7,10 @@ import io
 import base64
 import asyncio
 import uuid
+from typing import AsyncGenerator
+from PIL import Image as PILImage # Import Pillow Image
+from enum import Enum
+
 from settings import logger, NAI_API_TOKEN, random, STATS_DIR
 from pathlib import Path
 from datetime import datetime
@@ -22,6 +26,33 @@ from core.nai_stats import (
     GenerationResult
 )
 
+class SSEEventType(Enum):
+    """Enum for Server-Sent Event types."""
+    INTERMEDIATE = "intermediate"
+    FINAL = "final"
+    ERROR = "error"
+
+class SSEEvent:
+    """Simple class to represent a Server-Sent Event from the stream."""
+    def __init__(self, event_type: SSEEventType, data: dict, total_steps: int):
+        self.event_type = event_type
+        self.data = data
+        self.image: PILImage.Image | None = None
+        self.step: int | None = data.get("step_ix")
+        self.total_steps: int | None = total_steps
+
+        if "image" in data and data["image"] is not None:
+            try:
+                # The image data in the SSE stream is base64 encoded.
+                self.image = PILImage.open(io.BytesIO(base64.b64decode(data["image"])))
+            except Exception as e:
+                logger.error(f"Failed to open image from SSE event: {e}")
+                self.image = None
+
+    def __repr__(self):
+        return f"SSEEvent(event_type={self.event_type.value}, step={self.step})"
+
+
 class NovelAIAPI:
     BASE_URL = "https://image.novelai.net"
     OTHER_URL = "https://api.novelai.net"
@@ -33,16 +64,50 @@ class NovelAIAPI:
         async with session.post(f"{NovelAIAPI.BASE_URL}/ai/generate-image", json=data, headers=headers) as response:
             try:
                 response.raise_for_status()
-                #logger.info(f"NovelAI API response: {response.status}")
                 return await response.read(), response.status
             except aiohttp.ClientResponseError as e:
                 if e.status == 429:
-                    # Try again in 10 seconds
                     logger.error("NovelAI API rate limit exceeded. (429)")
                     return None, e.status
                 else:
                     logger.error(f"NovelAI API error: {e}")
                     return None, e.status
+
+    @staticmethod
+    async def generate_image_stream(session, access_token, prompt, model, action, parameters, total_steps) -> AsyncGenerator[SSEEvent, None]:
+        """
+        Connects to the NovelAI image generation streaming endpoint and yields SSEEvents.
+        This version manually processes the stream to avoid buffer overflows with large image data.
+        """
+        data = {"input": prompt, "model": model, "action": action, "parameters": parameters}
+        headers = {"Authorization": f"Bearer {access_token}", "Accept": "text/event-stream"}
+        
+        async with session.post(f"{NovelAIAPI.BASE_URL}/ai/generate-image-stream", json=data, headers=headers) as response:
+            response.raise_for_status()
+            
+            buffer = b""
+            event_type = None
+            async for chunk in response.content.iter_chunked(1024):
+                buffer += chunk
+                
+                while b"\n\n" in buffer:
+                    event_data, buffer = buffer.split(b"\n\n", 1)
+                    event_lines = event_data.decode('utf-8').split('\n')
+                    
+                    for line in event_lines:
+                        if line.startswith('event:'):
+                            event_type = line[len('event:'):].strip()
+                        elif line.startswith('data:'):
+                            payload_str = line[len('data:'):].strip()
+                            if event_type:
+                                try:
+                                    payload_json = json.loads(payload_str)
+                                    sse_event_type = SSEEventType(event_type)
+                                    yield SSEEvent(sse_event_type, payload_json, total_steps)
+                                except (json.JSONDecodeError, ValueError) as e:
+                                    logger.warning(f"Failed to parse SSE data or unknown event type '{event_type}': {e}")
+                                finally:
+                                    event_type = None
 
     @staticmethod
     async def director_tools(session, access_token, width, height, image, req_type, prompt: str = "", defry: int = 0):
@@ -97,7 +162,6 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                 }
 
                 if bundle_data['params']['model'] in ["nai-diffusion-4-full", "nai-diffusion-4-5-curated", "nai-diffusion-4-5-full"]:
-                    #logger.info("Using nai-diffusion-4-full model")
                     nai_params["v4_prompt"] = {
                         "caption": {
                             "base_caption": bundle_data['params']['positive'],
@@ -118,9 +182,6 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     if bundle_data['params']['noise_schedule'] == "native":
                         nai_params["noise_schedule"] = "karras"
 
-                #logger.info(f"Parameters: {nai_params}")
-
-                # Extract image, info and strength value from user database if vibe_transfer_preset is provided
                 vibe_transfer_data = bundle_data['params'].get('vibe_transfer_data')
                 if vibe_transfer_data:
                     nai_params['reference_image_multiple'] = []
@@ -128,14 +189,12 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     nai_params['reference_strength_multiple'] = []
 
                     for entry in vibe_transfer_data:
-                        # Append image, info_extracted and ref_strength to nai_params
                         nai_params['reference_image_multiple'].append(entry['image'])
                         nai_params['reference_information_extracted_multiple'].append(entry['info_extracted'])
                         nai_params['reference_strength_multiple'].append(entry['ref_strength'])
                 
                 message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
 
-                # Create generation parameters for stats tracking
                 start_time = datetime.now()
 
                 generation_params = GenerationParameters(
@@ -151,51 +210,97 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     seed=bundle_data['params']['seed'],
                     model=bundle_data['params']['model'],
                     quality_toggle=bundle_data['checking_params']['quality_toggle'],
-                    undesired_content=bundle_data['params']['negative'], # Use the full negative prompt
+                    undesired_content=bundle_data['params']['negative'],
                     prompt_conversion=bundle_data['checking_params']['prompt_conversion_toggle'],
                     upscale=bundle_data['params']['upscale'],
                     decrisper=bundle_data['params']['dynamic_thresholding'],
                     variety_plus=bundle_data['params']['skip_cfg_above_sigma'],
-                    vibe_transfer_used=bool(vibe_transfer_data), # Pass boolean indicating if vibe transfer was used
-                    undesired_content_preset=bundle_data['checking_params']['undesired_content_presets'] # Use the selected preset name
+                    vibe_transfer_used=bool(vibe_transfer_data),
+                    undesired_content_preset=bundle_data['checking_params']['undesired_content_presets']
                 )
 
-                # Call the NovelAI API
-                zipped_bytes, status = await NovelAIAPI.generate_image(
-                    session,
-                    NAI_API_TOKEN,
-                    bundle_data['params']['positive'],
-                    bundle_data['params']['model'],
-                    "generate",
-                    parameters=nai_params
-                )
-                # Check the status
-                if status != 200:
-                    error_messages = {
-                        400: "Bad request - The request was invalid or cannot be otherwise served",
-                        401: "Unauthorized - Invalid API token",
-                        402: "Payment Required - Payment is required to access this resource",
-                        403: "Forbidden - Access to the resource is forbidden",
-                        404: "Not Found - The requested resource was not found",
-                        429: "Rate Limit Exceeded - Please try again later",
-                        500: "Internal Server Error - NovelAI service issue",
-                        502: "Bad Gateway - NovelAI service temporarily down",
-                        503: "Service Unavailable - NovelAI is currently unavailable",
-                        504: "Gateway Timeout - NovelAI service timed out",
-                    }
-                    # Raise an exception if the status is not 200
-                    error_msg = error_messages.get(status, f"NovelAI API status code: {status}")
-                    logger.error(f"NovelAI API returned status code {error_msg}")
-                    raise Exception(f"NovelAI API Error: {error_msg}")
+                final_image_bytes = None
+                timelapse_frames = []
 
-                # Process the response
-                zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
-                image_bytes = zipped.read(zipped.infolist()[0])
-                image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+                if bundle_data.get('streaming', False):
+                    message = await message.edit(content=f"<a:evilrv1:1269168240102215731> Generating image (Streaming) <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`")
+                    
+                    last_update_time = asyncio.get_event_loop().time()
 
-                # Check if upscale is enabled
+                    async for event in NovelAIAPI.generate_image_stream(
+                        session,
+                        NAI_API_TOKEN,
+                        bundle_data['params']['positive'],
+                        bundle_data['params']['model'],
+                        "generate",
+                        parameters=nai_params,
+                        total_steps=bundle_data['params']['steps']
+                    ):
+                        if event.event_type == SSEEventType.INTERMEDIATE and event.image:
+                            timelapse_frames.append(event.image)
+                            current_time = asyncio.get_event_loop().time()
+                            if event.step is not None and (current_time - last_update_time) > 1.0:
+                                try:
+                                    img_byte_arr = io.BytesIO()
+                                    event.image.save(img_byte_arr, format="PNG")
+                                    img_byte_arr.seek(0)
+                                    file = File(img_byte_arr, filename="preview.png")
+                                    await message.edit(
+                                        content=f"<a:evilrv1:1269168240102215731> Generating image (Streaming) <a:evilrv1:1269168240102215731>\nModel: `{bundle_data['params']['model']}`\nStep: {event.step}/{event.total_steps or '?'}",
+                                        attachments=[file]
+                                    )
+                                    last_update_time = current_time
+                                except Exception as e:
+                                    logger.error(f"Failed to update message with intermediate step: {e}")
+
+                        elif event.event_type == SSEEventType.FINAL and event.image:
+                            timelapse_frames.append(event.image)
+                            img_byte_arr = io.BytesIO()
+                            event.image.save(img_byte_arr, format="PNG")
+                            final_image_bytes = img_byte_arr.getvalue()
+                            break
+
+                        elif event.event_type == SSEEventType.ERROR:
+                            error_msg = event.data.get("message", "Unknown streaming error")
+                            logger.error(f"NovelAI streaming error: {error_msg}")
+                            raise Exception(f"NovelAI Streaming Error: {error_msg}")
+
+                    if final_image_bytes is None:
+                         raise Exception("Streaming finished without providing a final image.")
+
+                else:
+                    zipped_bytes, status = await NovelAIAPI.generate_image(
+                        session,
+                        NAI_API_TOKEN,
+                        bundle_data['params']['positive'],
+                        bundle_data['params']['model'],
+                        "generate",
+                        parameters=nai_params
+                    )
+                    if status != 200:
+                        error_messages = {
+                            400: "Bad request - The request was invalid or cannot be otherwise served",
+                            401: "Unauthorized - Invalid API token",
+                            402: "Payment Required - Payment is required to access this resource",
+                            403: "Forbidden - Access to the resource is forbidden",
+                            404: "Not Found - The requested resource was not found",
+                            429: "Rate Limit Exceeded - Please try again later",
+                            500: "Internal Server Error - NovelAI service issue",
+                            502: "Bad Gateway - NovelAI service temporarily down",
+                            503: "Service Unavailable - NovelAI is currently unavailable",
+                            504: "Gateway Timeout - NovelAI service timed out",
+                        }
+                        error_msg = error_messages.get(status, f"NovelAI API status code: {status}")
+                        logger.error(f"NovelAI API returned status code {error_msg}")
+                        raise Exception(f"NovelAI API Error: {error_msg}")
+
+                    zipped = zipfile.ZipFile(io.BytesIO(zipped_bytes))
+                    final_image_bytes = zipped.read(zipped.infolist()[0])
+
+                image_base64 = base64.b64encode(final_image_bytes).decode("utf-8")
+
                 if bundle_data['params']['upscale']:
-                    image_bytes = await NovelAIAPI.upscale(
+                    upscaled_bytes = await NovelAIAPI.upscale(
                         session,
                         NAI_API_TOKEN,
                         image_base64,
@@ -203,132 +308,47 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                         bundle_data['params']['height'],
                         4,
                     )
-                    zipped = zipfile.ZipFile(io.BytesIO(image_bytes))
-                    image_bytes = zipped.read(zipped.infolist()[0])
+                    zipped_upscale = zipfile.ZipFile(io.BytesIO(upscaled_bytes))
+                    final_image_bytes = zipped_upscale.read(zipped_upscale.infolist()[0])
                     
-                # Save the image
                 file_path = f"nai_generated_{interaction.user.id}.png"
                 output_dir = Path("nai_output")
                 output_dir.mkdir(exist_ok=True)
-                (output_dir / file_path).write_bytes(image_bytes)
+                (output_dir / file_path).write_bytes(final_image_bytes)
 
-                # Stop the timer
                 end_time = datetime.now()
-                elapsed_time = end_time - start_time
-                elapsed_time = round(elapsed_time.total_seconds(), 2)
+                elapsed_time = round((end_time - start_time).total_seconds(), 2)
 
-                # Some information for the user
                 reply_content = f"Seed: `{bundle_data['params']['seed']}` | Elapsed time: `{elapsed_time}s`"
                 reply_content += f"\nBy: {interaction.user.mention}"
 
-                # Prepare the image as a file
                 files = []
-                file_path = f"{output_dir}/{file_path}"
-                file = File(file_path)
+                file_path_full = str(output_dir / file_path)
+                file = File(file_path_full)
                 files.append(file)
 
-                # Forward the image to database if enabled
-                # Database channel
+                if timelapse_frames:
+                    timelapse_path = output_dir / f"timelapse_{interaction.user.id}.gif"
+                    timelapse_frames[0].save(
+                        timelapse_path,
+                        save_all=True,
+                        append_images=timelapse_frames[1:],
+                        optimize=False,
+                        duration=100,
+                        loop=0
+                    )
+                    
                 database_channel = bot.get_channel(settings.DATABASE_CHANNEL_ID)
-                database_channel_2 = bot.get_channel(settings.DATABASE_CHANNEL_2_ID)
                 reply_content_db = reply_content
-
-                # Add to stats.json
-                with open(settings.STATS_JSON, "r") as f:
-                    nai_stats = json.load(f)
-                if str(interaction.user.id) in nai_stats:
-                    nai_stats[str(interaction.user.id)] += 1
-                else:
-                    nai_stats[str(interaction.user.id)] = 1
-                with open(settings.STATS_JSON, "w") as f:
-                    json.dump(nai_stats, f, indent=4)
-
-                # Additional info for the database (adding channel of interaction if it's not dm)
-                if interaction.guild is None:
-                    # DM
-                    # Copy reply_content to reply_content_db
-                    reply_content_db += f"\nChannel: {interaction.user.mention}'s DM"
-                else:
-                    interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
-                    reply_content_db += f"\nChannel: {interaction_channel_link}"
-                if settings.TO_DATABASE:
-                    database_message = await database_channel.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none())
-                else:
-                    # Meaning testing, so delete message after 20 seconds
-                    database_message = await database_channel.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none(), delete_after=20)
-                # Forward to database 2 (Paused for now)
-                # Reopen the file for actual posting
-                ###file = File(file_path)
-                ###files = [file]
-                ###data_base_message_2 = await database_channel_2.send(content=reply_content_db, files=files, allowed_mentions=AllowedMentions.none())
-                ###await data_base_message_2.add_reaction("🔎")
-
-                # Get image url from message
-                attachment = database_message.attachments[0]
-                if attachment is not None:
-                    image_url = attachment.url
-
-                # Reopen the file for actual posting
-                file = File(file_path)
-                files = [file]
-
-                if interaction.guild_id == settings.ANIMEAI_SERVER: # If bot is in animeai server
-                    if interaction.channel_id == settings.SFW_IMAGE_GEN_BOT_CHANNEL: # If channel is image gen bot channel (sfw)
-                        warning_message = f"<a:neuroKuru:1279864980795035783> Classifying image <a:neuroKuru:1279864980795035783>"
-                        warning_message += f"\n-# If image is classified as NSFW, it will be forwarded to the NSFW channel"
-                        warning_message += f"\n-# Want to skip classification? Use bot in {bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL).mention}"
-                        message = await message.edit(content=warning_message)
-                        # Call predict function (TESTING)
-                        confidence_levels, highest_confidence_level, is_nsfw = predict(image_url)
-                        #for label, confidence in confidence_levels.items():
-                        #    reply_content += f"\n{label}: {confidence:.2f}"
-                        #reply_content += f"\n{confidence_levels}\n{highest_confidence_level}"
-
-                        if is_nsfw:
-                            channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL) # Channel for image gen bot channel (nsfw)
-                            forward_message = await channel.send(content=f"{reply_content}\n[View Request]({message.jump_url})", files=files)
-                            # Edit message to include a link to the forwarded message
-                            reply_content += f"\nForwarded to {channel.mention} due to `NSFW` content"
-                            reply_content += f"\n[View Forwarded Message]({forward_message.jump_url})"
-                            await message.edit(content=reply_content)
-                            bundle_data['message'] = forward_message
-                            # Add reaction to forward message
-                            await forward_message.add_reaction("🗑️")
-                            # Disabled adding "🔎" reaction as it's a new message and other bot will add that reaction
-                        else:
-                            message = await message.edit(content=reply_content, attachments=files)
-                            # Add reaction to message
-                            await message.add_reaction("🗑️")
-                            await message.add_reaction("🔎")
-
-                    else:
-                        await message.edit(content=reply_content, attachments=files)
-                        # Add reaction to message
-                        await message.add_reaction("🗑️")
-                        await message.add_reaction("🔎")
-
-                else:
-                    message = await message.edit(content=reply_content, attachments=files)
                 
-                # Prepare RemixView
-                forward_channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL)
-                settings.Globals.remix_views[request_id] = RemixView(bundle_data, forward_channel)
-                await settings.Globals.remix_views[request_id].send()
-
-                # Check if channel posted on is 1157817614245052446 then add reaction
-                if interaction.channel.id == 1157817614245052446:
-                    await message.add_reaction("🔎")
-                    await message.add_reaction("🗑️")
-                
-                # Record successful generation
+                # Update stats using the stats_manager
                 generation_result = GenerationResult(
                     success=True,
                     error_message=None,
                     database_message_id=database_message.id if 'database_message' in locals() else None,
-                    attempts_made=2 - bundle_data['number_of_tries'] # Calculate total attempts made
+                    attempts_made=2 - bundle_data['number_of_tries']
                 )
-                
-                # Create and save generation history
+
                 generation_history = NAIGenerationHistory(
                     generation_id=request_id,
                     timestamp=datetime.now().isoformat(),
@@ -337,9 +357,79 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     parameters=generation_params,
                     result=generation_result
                 )
-                # Add generation to stats and save if successful
-                added_successfully = stats_manager.add_generation(generation_history)
-                if added_successfully:
+                if stats_manager.add_generation(generation_history):
+                    stats_manager.save_data()
+
+                if interaction.guild is None:
+                    reply_content_db += f"\nChannel: {interaction.user.mention}'s DM"
+                else:
+                    interaction_channel_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+                    reply_content_db += f"\nChannel: {interaction_channel_link}"
+                
+                # Re-open file for database send
+                db_files = [File(file_path_full)]
+                if settings.TO_DATABASE:
+                    database_message = await database_channel.send(content=reply_content_db, files=db_files, allowed_mentions=AllowedMentions.none())
+                else:
+                    database_message = await database_channel.send(content=reply_content_db, files=db_files, allowed_mentions=AllowedMentions.none(), delete_after=20)
+                
+                attachment = database_message.attachments[0]
+                image_url = attachment.url if attachment else None
+
+                # Re-open file for final reply
+                final_files = [File(file_path_full)]
+                if timelapse_frames:
+                    final_files.append(File(str(timelapse_path)))
+
+                if interaction.guild_id == settings.ANIMEAI_SERVER and interaction.channel_id == settings.SFW_IMAGE_GEN_BOT_CHANNEL:
+                    warning_message = f"<a:neuroKuru:1279864980795035783> Classifying image...\n-# If image is classified as NSFW, it will be forwarded to the NSFW channel.\n-# Want to skip classification? Use bot in {bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL).mention}"
+                    message = await message.edit(content=warning_message, attachments=[])
+                    
+                    if image_url:
+                        confidence_levels, highest_confidence_level, is_nsfw = predict(image_url)
+                        if is_nsfw:
+                            nsfw_channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL)
+                            forward_message = await nsfw_channel.send(content=f"{reply_content}\n[View Request]({message.jump_url})", files=final_files)
+                            await forward_message.add_reaction("🗑️")
+                            
+                            reply_content += f"\nForwarded to {nsfw_channel.mention} due to `NSFW` content.\n[View Forwarded Message]({forward_message.jump_url})"
+                            await message.edit(content=reply_content, attachments=[])
+                            bundle_data['message'] = forward_message
+                        else:
+                            message = await message.edit(content=reply_content, attachments=final_files)
+                            await message.add_reaction("🗑️")
+                            await message.add_reaction("🔎")
+                    else:
+                        await message.edit(content="Error: Could not retrieve image URL for classification.", attachments=[])
+                else:
+                    message = await message.edit(content=reply_content, attachments=final_files)
+                    await message.add_reaction("🗑️")
+                    await message.add_reaction("🔎")
+                
+                forward_channel = bot.get_channel(settings.IMAGE_GEN_BOT_CHANNEL)
+                settings.Globals.remix_views[request_id] = RemixView(bundle_data, forward_channel)
+                await settings.Globals.remix_views[request_id].send()
+
+                if interaction.channel.id == 1157817614245052446:
+                    await message.add_reaction("🔎")
+                    await message.add_reaction("🗑️")
+                
+                generation_result = GenerationResult(
+                    success=True,
+                    error_message=None,
+                    database_message_id=database_message.id if 'database_message' in locals() else None,
+                    attempts_made=2 - bundle_data['number_of_tries']
+                )
+                
+                generation_history = NAIGenerationHistory(
+                    generation_id=request_id,
+                    timestamp=datetime.now().isoformat(),
+                    user_id=interaction.user.id,
+                    generation_time=elapsed_time,
+                    parameters=generation_params,
+                    result=generation_result
+                )
+                if stats_manager.add_generation(generation_history):
                     stats_manager.save_data()
                 
                 return True
@@ -347,13 +437,12 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
 
-            # Record failed generation if variables are available
-            if 'request_id' in locals() and 'generation_params' in locals():
+            if 'request_id' in locals() and 'generation_params' in locals() and 'interaction' in locals():
                 generation_result = GenerationResult(
                     success=False,
                     error_message=str(e),
                     database_message_id=None,
-                    attempts_made=2 - bundle_data['number_of_tries'] # Calculate total attempts made
+                    attempts_made=2 - bundle_data.get('number_of_tries', 1)
                 )
 
                 generation_history = NAIGenerationHistory(
@@ -365,18 +454,19 @@ async def process_txt2img(bot: commands.Bot, bundle_data: da.BundleData):
                     result=generation_result
                 )
                 stats_manager.add_generation(generation_history)
-                stats_manager.save_data() # Save stats on failure
+                stats_manager.save_data()
 
-            if bundle_data['number_of_tries'] > 0:
+            if bundle_data.get('number_of_tries', 0) > 0:
                 reply_content = f"⚠️`{str(e)}`. Retrying in `10` seconds. (`{bundle_data['number_of_tries']}` tries left)"
-                await message.edit(content=reply_content)
+                await message.edit(content=reply_content, attachments=[])
                 await asyncio.sleep(10)
-                #await process_txt2img(bot, bundle_data)
             else:
                 reply_content = f"❌`{str(e)}`. Please try again later."
-                await message.edit(content=reply_content)
+                await message.edit(content=reply_content, attachments=[])
                 return False
 
+# The process_director_tools function remains unchanged. Please include it in your final file.
+# NOTE: The provided snippet for process_director_tools is correct and does not need changes.
 async def process_director_tools(bot: commands.Bot, bundle_data: da.BundleData):
     while bundle_data['number_of_tries'] >= 1:
         try:

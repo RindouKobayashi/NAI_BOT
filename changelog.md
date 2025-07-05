@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.7 - 2025-07-05
+### Added
+- Added `streaming` option to `nai` command (only works for v4 and above).
+- A timelapse of the generation process will be shown if the `streaming` option is enabled.
+- Generation time will be longer if the `streaming` option is enabled. (Due to how discord handles message editing)
+
 ## 1.1.6 - 2025-06-02
 ### Added
 - Added `nai-diffusion-4-5-full` model (Nai v4.5 support).

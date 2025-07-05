@@ -61,6 +61,7 @@ class BundleData(TypedDict, total=False):
     reference_message: discord.Message = None
     director_tools_params: Director_Tools_Params = None
     number_of_tries: int = 2
+    streaming: bool = False # Added for streaming generation
 
 def create_with_defaults(typed_dict_class: Dict[str, Any], **kwargs) -> Dict[str, Any]:
     # Initialize with None for all fields based on the TypedDict annotations
@@ -82,4 +83,5 @@ def deep_copy_bundle_data(bundle_data: BundleData) -> BundleData:
         reference_message=bundle_data.get("reference_message"),
         director_tools_params=deepcopy(bundle_data.get("director_tools_params")),  # Deep copy if necessary
         number_of_tries=bundle_data.get("number_of_tries"),
+        streaming=bundle_data.get("streaming"), # Deep copy if necessary
     )

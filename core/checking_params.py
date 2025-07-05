@@ -21,6 +21,11 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
             ### Process model
             if checking_params["model"] not in Nai_vars.models:
                 checking_params["model"] = checking_params["model"].value
+            
+            ### Check for streaming compatibility
+            if checking_params["streaming"] and checking_params["model"] not in ["nai-diffusion-4-full", "nai-diffusion-4-5-curated", "nai-diffusion-4-5-full"]:
+                checking_params["streaming"] = False
+                await interaction.followup.send("Streaming is only available for V4 models. Disabling streaming for this generation.", ephemeral=True)
 
             ### Make width to be a multiple of 64
             if checking_params["width"] % Nai_vars.width.step != 0:

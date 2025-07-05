@@ -115,7 +115,8 @@ class NAI(commands.Cog):
         decrisper="Basically dynamic thresholding (default: False)",
         variety_plus="Enable guidance only after body been formed, improved diversity, saturation of samples. (default: False)",
         load_preset="Load a preset for NAI generation",
-        vibe_transfer_preset="Load a vibe transfer preset"
+        vibe_transfer_preset="Load a vibe transfer preset",
+        streaming="Enable streaming image generation (default: False)" # Added streaming option
     )
     async def nai(self, interaction: discord.Interaction,
                   positive: str,
@@ -136,7 +137,8 @@ class NAI(commands.Cog):
                   decrisper: bool = None,
                   variety_plus: bool = None,
                   load_preset: str = None,
-                  vibe_transfer_preset: str = None
+                  vibe_transfer_preset: str = None,
+                  streaming: bool = False # Added streaming parameter
                   ):
         logger.info(f"COMMAND 'NAI' USED BY: {interaction.user} ({interaction.user.id})")
 
@@ -229,6 +231,8 @@ class NAI(commands.Cog):
                 decrisper = False
             if not variety_plus:
                 variety_plus = False
+            if streaming is None: # Ensure streaming defaults to False if not provided
+                streaming = False
 
             # Determine vibe_transfer_switch and load data based on vibe_transfer_preset
             vibe_transfer_switch = False
@@ -280,7 +284,8 @@ class NAI(commands.Cog):
                 dynamic_thresholding=decrisper,
                 skip_cfg_above_sigma=variety_plus,
                 vibe_transfer_preset=vibe_transfer_preset,
-                vibe_transfer_data=vibe_transfer_data
+                vibe_transfer_data=vibe_transfer_data,
+                streaming=streaming # Pass streaming to checking_params
             )
 
             checking_params = await check_params(checking_params, interaction)
@@ -319,6 +324,7 @@ class NAI(commands.Cog):
                 message=message,
                 params=params,
                 checking_params=checking_params,
+                streaming=checking_params["streaming"] # Pass streaming to bundle_data
             )
 
             # Add the request to the queue
