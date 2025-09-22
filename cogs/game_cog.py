@@ -9,6 +9,7 @@ from typing import Dict, List
 import json
 from pathlib import Path
 from datetime import datetime
+import requests
 
 @dataclass
 class WordleGameHistory:
@@ -134,6 +135,16 @@ class GameCog(commands.Cog):
         self.load_stats()
         self.load_history()
         # logger.info(f"Initialized GameCog with word: {self.current_word}") # Removed logging
+
+    def word_definition(self, word: str) -> str:
+        """Use https://api.dictionaryapi.dev/api/v2/entries/en/<word> to get definition."""
+        url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                return data[0]["meanings"][0]["definitions"][0]["definition"]
+        return ""
 
     def save_history(self):
         """Save game history to JSON file."""
@@ -340,12 +351,16 @@ class GameCog(commands.Cog):
             self.game_history.append(self.current_game_history)
             self.save_history()
             self.save_stats()
+
+            # Get definition of the word
+            definition = self.word_definition(self.current_word)
             
             await interaction.response.send_message(
                 f"🎉 Congratulations! You found the word `{self.current_word}` in {attempts_used} attempts!\n"
+                f"Definition: `{definition if definition else 'No definition found.'}`\n\n"
                 f"A new word has been chosen for everyone!\n\n"
                 f"Your guesses:\n{state.get_full_history()}\n\n"
-                f"Current streak: {stats.current_streak} | Best streak: {stats.best_streak}"
+                f"Current streak: `{stats.current_streak}` | Best streak: `{stats.best_streak}`"
             )
             
             old_word = self.current_word
@@ -674,6 +689,20 @@ class GameCog(commands.Cog):
                 ))
         
         return choices
+    
+    @app_commands.command(name="define", description="Get the definition of a word")
+    @app_commands.describe(word="The word you want to define")
+    async def define(self, interaction: discord.Interaction, word: str):
+        """Fetch and display the definition of a word."""
+        if not word or len(word) < 1:
+            await interaction.response.send_message("Please provide a valid word to define.")
+            return
+        
+        definition = self.word_definition(word)
+        if definition:
+            await interaction.response.send_message(f"**{word}**: `{definition}`")
+        else:
+            await interaction.response.send_message(f"Sorry, I couldn't find a definition for `{word}`.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(GameCog(bot))
