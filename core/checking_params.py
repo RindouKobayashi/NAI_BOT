@@ -84,6 +84,12 @@ async def check_params(checking_params: Checking_Params, interaction: discord.In
             else:
                 checking_params["sm"] = False
                 checking_params["sm_dyn"] = False
+            if checking_params["model"] in ["nai-diffusion-4-full", "nai-diffusion-4-5-curated", "nai-diffusion-4-5-full"]:
+                # SMEA is not compatible with V4 models
+                if checking_params["sm"] == True:
+                    checking_params["sm"] = False
+                    checking_params["sm_dyn"] = False
+                    await interaction.followup.send("SMEA is not compatible with V4 models. Disabling SMEA for this generation.", ephemeral=True)
 
             ### Process variety plus
             if checking_params["skip_cfg_above_sigma"] == True:

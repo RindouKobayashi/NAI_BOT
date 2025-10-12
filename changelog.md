@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.8 - 2025-10-13
+### Fixed
+- SMEA is not supported for v4 models. If using v4 models with SMEA enabled, SMEA will be automatically disabled.
+
 ## 1.1.7 - 2025-07-05
 ### Added
 - Added `streaming` option to `nai` command (only works for v4 and above).
