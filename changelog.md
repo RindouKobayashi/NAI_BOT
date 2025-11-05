@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.9 - 2025-11-05
+### Backend
+- Optimized wd-tagger initialization to use lazy loading with automatic cleanup after 5 minutes of inactivity, reducing startup time and resource usage.
+- Cleaned up bot presence statuses to show only useful information: server count, user count, uptime, ping, total generations, and average generation speed.
+
 ## 1.1.8 - 2025-10-13
 ### Fixed
 - SMEA is not supported for v4 models. If using v4 models with SMEA enabled, SMEA will be automatically disabled.

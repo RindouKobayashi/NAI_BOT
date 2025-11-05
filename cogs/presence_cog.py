@@ -2,6 +2,7 @@ import discord
 import random
 from discord.ext import commands, tasks
 from settings import logger
+from core.nai_stats import stats_manager
 
 class PresenceCog(commands.Cog):
     """Handles the bot's auto-rotating presence."""
@@ -17,19 +18,16 @@ class PresenceCog(commands.Cog):
 
     def get_statuses(self):
         """Returns dynamic statuses including bot info"""
+        global_stats = stats_manager.get_global_stats()
+
         all_statuses = [
-            (discord.ActivityType.playing, "with NovelAI"),
             (discord.ActivityType.watching, f"{self.guild_count} servers"),
-            (discord.ActivityType.watching, "anime art"),
-            (discord.ActivityType.watching, "art being generated"),
-            (discord.ActivityType.listening, "prompt requests"),
-            (discord.ActivityType.playing, "with image generation"),
             (discord.ActivityType.watching, f"{len(self.bot.users)} artists"),
-            (discord.ActivityType.listening, "image commands"),
-            (discord.ActivityType.playing, "with AI art"),
-            (discord.ActivityType.watching, "masterpieces form"),
             (discord.ActivityType.watching, f"Uptime: {round((discord.utils.utcnow() - self.bot.start_time).total_seconds() / 60)} minutes"),
+            (discord.ActivityType.watching, f"Generated: {global_stats.total_generations}"),
+            (discord.ActivityType.watching, f"Avg: {round(global_stats.average_generation_speed, 1)}s per image"),
         ]
+
         # Add ping status only if latency is finite
         if self.bot.latency != float('inf'):
              all_statuses.append((discord.ActivityType.listening, f"Ping: {round(self.bot.latency * 1000)}ms"))

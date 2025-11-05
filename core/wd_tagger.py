@@ -1,16 +1,49 @@
 import settings
 from settings import logger
 from gradio_client import Client, handle_file
+import asyncio
+import time
 
-try:
-    client = Client(
-        "https://smolrabbit-wd-tagger.hf.space",
-        hf_token=settings.HUGGING_FACE_TOKEN,
-        )
-except Exception as e:
-    logger.error(f"WD-TAGGER: {e}")
+client = None  # Lazy initialization
+last_used = 0
+cleanup_task = None
+CLEANUP_DELAY = 300 # 5 minutes in seconds
+
+async def _cleanup_client():
+    """Background task to clean up the client after inactivity"""
+    await asyncio.sleep(CLEANUP_DELAY)
+    global client, cleanup_task
+    if client is not None and (time.time() - last_used) >= CLEANUP_DELAY:
+        logger.info("WD-TAGGER: Cleaning up client due to inactivity")
+        client = None
+        cleanup_task = None
+
+def _schedule_cleanup():
+    """Schedule client cleanup after delay"""
+    global cleanup_task
+    if cleanup_task is not None:
+        cleanup_task.cancel()
+    loop = asyncio.get_event_loop()
+    cleanup_task = loop.create_task(_cleanup_client())
 
 def predict(image_url, type:str = "check_nsfw"):
+    global client, last_used
+    last_used = time.time()
+
+    if client is None:
+        try:
+            logger.info("WD-TAGGER: Initializing client on first use...")
+            client = Client(
+                "https://smolrabbit-wd-tagger.hf.space",
+                hf_token=settings.HUGGING_FACE_TOKEN,
+            )
+            logger.info("WD-TAGGER: Client initialized successfully")
+        except Exception as e:
+            logger.error(f"WD-TAGGER: Failed to initialize client: {e}")
+            raise e
+
+    # Schedule cleanup after this usage
+    _schedule_cleanup()
     #TODO: Add logic to predict image, still in testing
     #LINK: https://huggingface.co/spaces/SmolRabbit/wd-tagger
     result = client.predict(
