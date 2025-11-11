@@ -19,32 +19,38 @@ class REACTION(commands.Cog):
         if payload.emoji.name == "🗑️":
             
             # Check if it's in the correct channel (replace with your actual channel ID)
-            if payload.channel_id not in [settings.IMAGE_GEN_BOT_CHANNEL, settings.SFW_IMAGE_GEN_BOT_CHANNEL]:
-                return
-            # Get payload.message
-            message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-            
-            # Check number of reactions
-            for reaction in message.reactions:
-                if reaction.emoji == "🗑️":
-                    # Check if reaction count is above 2
-                    if reaction.count > 2:
-                        await message.delete()
-                        break
-            
-            # Check if there's at least one mention
-            if not message.mentions:
-                return
-            
-            # Original command author
-            original_user = message.mentions[0]
+            if payload.channel_id in [settings.IMAGE_GEN_BOT_CHANNEL, settings.SFW_IMAGE_GEN_BOT_CHANNEL]:
 
-            # Check if it's the original command author
-            if original_user.id != payload.user_id:
-                return
-            
-            # Delete message
-            await message.delete()
+                # Get payload.message
+                message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+                
+                # Check number of reactions
+                for reaction in message.reactions:
+                    if reaction.emoji == "🗑️":
+                        # Check if reaction count is above 2
+                        if reaction.count > 2:
+                            await message.delete()
+                            break
+                
+                # Check if there's at least one mention
+                if not message.mentions:
+                    return
+                
+                # Original command author
+                original_user = message.mentions[0]
+
+                # Check if it's the original command author
+                if original_user.id != payload.user_id:
+                    return
+                
+                # Delete message
+                await message.delete()
+
+            # Delete in developer servers without channel check
+            elif payload.guild_id in settings.DEVELOPER_SERVERS_LIST:
+                message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+                await message.delete()
+
 
 
 
